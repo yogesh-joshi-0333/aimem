@@ -163,11 +163,13 @@ Also found and fixed: `scripts/bundle-embedding-model.mjs` was missing from `pac
 
 ### 9B — Semantic Search Quality
 
-- [ ] Build a small, realistic benchmark set of project-memory-style queries and expected top-1/top-5 matches (e.g. "staging db password" → the credential fact; "why did we pick postgres" → the decision fact) — check this into `src/embedding-search-engine/__tests__/` as a fixture, not a throwaway script.
-- [ ] Measure current top-1/top-5 accuracy on that benchmark with the existing `Xenova/all-MiniLM-L6-v2` model as a baseline.
+- [x] Build a small, realistic benchmark set of project-memory-style queries and expected top-1/top-5 matches (e.g. "staging db password" → the credential fact; "why did we pick postgres" → the decision fact) — checked into `src/embedding-search-engine/__tests__/fixtures/search-quality-benchmark.ts` (12 fixtures across credential/architecture_fact/decision/bug_fix/manual_note categories, 36 total queries, plus 8 topic-overlapping distractor facts so retrieval genuinely discriminates rather than trivially matching).
+- [x] Measured current top-1/top-5 accuracy on that benchmark with the existing `Xenova/all-MiniLM-L6-v2` model as a baseline: **86.1% top-1 (31/36), 100% top-5 (36/36)**, run via `npm run test:search-quality`. All 5 top-1 misses landed at rank 2, not lower — the model is close on every miss, not badly wrong. This is the number future model/ranking changes (9B model swap, 9E hybrid search) should be diffed against.
 - [ ] Evaluate `bge-small-en-v1.5` as the replacement model — same 384 dimensions, same size class (~size-neutral swap, not a bundle-size regression), and consistently better on public retrieval benchmarks than MiniLM as of the 2026 research sweep (see [decisions/ADR.md](../decisions/ADR.md) ADR-015). This is a candidate to confirm on the benchmark, not an open-ended model search — do not evaluate significantly larger models (e.g. anything approaching or exceeding ~500MB) given the "bundled at install, zero network calls" constraint.
-- [ ] If `bge-small-en-v1.5` measurably improves the benchmark, update `EMBEDDING_MODEL_NAME` in `config.ts` (dimensions stay 384, so no `sqlite-vec` schema change needed), re-run the benchmark, and record the before/after numbers in a new ADR.
+- [ ] If `bge-small-en-v1.5` measurably improves the benchmark (target: meaningfully above 86.1% top-1, ideally closing some/all of the 5 rank-2 misses), update `EMBEDDING_MODEL_NAME` in `config.ts` (dimensions stay 384, so no `sqlite-vec` schema change needed), re-run the benchmark, and record the before/after numbers in a new ADR.
 - [ ] If it doesn't measurably improve the benchmark, document why not so this isn't silently revisited later without cause.
+
+**Found while building this:** `vitest run <arg>` treats the argument as a filename substring, not a glob — the original `test:performance` script (`vitest run src/**/performance.integration.test.ts`) had been silently matching zero files since the slow-test exclude was added to `vitest.config.ts`, and nobody had re-run it to notice. Fixed both `test:performance` and the new `test:search-quality` to use substring filters against a shared `vitest.slow.config.ts`. See [knowledge/testing-guide.md](../knowledge/testing-guide.md).
 
 ### 9E — Hybrid Search Re-Ranking (Keyword + Vector)
 

@@ -82,13 +82,16 @@ it("responds to memory_get_project_context on a fresh project with no error", as
 ## How To Run Tests
 
 ```bash
-npm test               # runs all unit + integration tests via vitest (fast; excludes performance tests)
-npm run test:e2e       # runs e2e tests (builds first, spawns real subprocess)
-npm run test:performance  # runs the slow at-scale performance test(s) (FR-STORE-07) — real embedding model, ~20-30s
-npm run test:watch     # watch mode during development
+npm test                  # runs all unit + integration tests via vitest (fast; excludes slow tests below)
+npm run test:e2e          # runs e2e tests (builds first, spawns real subprocess)
+npm run test:performance  # runs the slow at-scale performance test(s) (FR-STORE-07) — real embedding model, ~30-40s
+npm run test:search-quality  # runs the search-quality benchmark (Phase 9B) — real embedding model, top-1/top-5 accuracy report
+npm run test:watch        # watch mode during development
 ```
 
-Files matching `**/performance.integration.test.ts` are excluded from the default `npm test` run (see `vitest.config.ts`) because they embed thousands of observations with the real local model and take tens of seconds — too slow for the routine test loop. They still count toward "every public method has a unit test" and must pass before a phase touching performance-sensitive code is marked complete; run them explicitly via `npm run test:performance`.
+Files matching `**/performance.integration.test.ts` and `**/search-quality-benchmark.integration.test.ts` are excluded from the default `npm test` run (see `vitest.config.ts`) because they embed real text with the real local model and take tens of seconds — too slow for the routine test loop. Both run via a shared `vitest.slow.config.ts` (180s timeouts). They still count toward "every public method has a unit test" and must pass before a phase touching performance- or search-quality-sensitive code is marked complete; run them explicitly via their npm scripts.
+
+**Vitest CLI filter gotcha (found while adding the search-quality benchmark):** `vitest run <arg>` treats a positional argument as a **filename substring match**, not a glob — `vitest run src/**/foo.test.ts` silently matches nothing (the config's own `include`/`exclude` still apply first, and the literal `**` glob text is never expanded by vitest itself). Use a plain substring (e.g. `vitest run foo-test-name`) in npm scripts instead. This was a real, previously-unnoticed bug in `test:performance` itself — the script had silently done nothing (`No test files found, exiting with code 0`) since the slow-test exclude was added, and nobody had re-run it since to notice. Fixed for both scripts when the search-quality benchmark surfaced it.
 
 ## E2E Test Isolation
 

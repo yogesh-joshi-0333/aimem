@@ -54,7 +54,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:e2e": "npm run build && vitest run -c vitest.e2e.config.ts",
-    "test:performance": "vitest run src/**/performance.integration.test.ts",
+    "test:performance": "vitest run -c vitest.slow.config.ts performance.integration",
+    "test:search-quality": "vitest run -c vitest.slow.config.ts search-quality-benchmark",
     "test:watch": "vitest"
   },
   "dependencies": {

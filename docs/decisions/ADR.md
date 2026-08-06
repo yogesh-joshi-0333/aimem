@@ -202,4 +202,17 @@ Append-only log. Never edit a past ADR's decision retroactively — if a decisio
 
 ---
 
+## ADR-016: Search-Quality Benchmark Established (Phase 9B Baseline: 86.1% Top-1, 100% Top-5); Fixed a Latent `test:performance` Script Bug
+
+**Date:** 2026-08-06
+**Status:** Accepted
+
+**Decision:** Built the Phase 9B search-quality benchmark as a real, checked-in fixture set (`src/embedding-search-engine/__tests__/fixtures/search-quality-benchmark.ts` — 12 realistic project-memory facts across all documented memory categories, 36 natural-language queries, 8 topic-overlapping distractor facts) plus a scoring harness (`search-quality-benchmark.integration.test.ts`) that reports top-1/top-5 accuracy and lists every miss with its actual rank. Recorded baseline against the current model (`Xenova/all-MiniLM-L6-v2`): **86.1% top-1 (31/36), 100% top-5 (36/36)**.
+
+**Reason:** This is the mechanism the project needs to honestly answer "does our search quality match [competitor]'s" — a question raised earlier and correctly left unanswered at the time because no benchmark existed. All 5 top-1 misses landed at rank 2 (never lower), meaning the current model is consistently *close* rather than *wrong* — a useful signal for evaluating whether `bge-small-en-v1.5` (the 9B model-swap candidate) meaningfully closes that gap or not.
+
+**Consequences:** Building this surfaced a real, previously-undetected bug: `vitest run <positional-arg>` matches on filename **substring**, not glob syntax — the pre-existing `test:performance` npm script (`vitest run src/**/performance.integration.test.ts`) had been silently running zero tests (`No test files found, exiting with code 0`) ever since `vitest.config.ts`'s exclude list was extended, because nobody had re-invoked that specific script since. Both `test:performance` and the new `test:search-quality` now use plain substring filters against a shared `vitest.slow.config.ts` (180s timeouts, covers both slow/real-model integration tests). Documented in [knowledge/testing-guide.md](../knowledge/testing-guide.md) as a general vitest CLI gotcha, since it will recur for any future slow-test script added the same way.
+
+---
+
 See also: [../RULES.md](../RULES.md), [../requirements/PRD.md](../requirements/PRD.md), [../architecture/system-overview.md](../architecture/system-overview.md), [implementation/phases.md](../implementation/phases.md) Phase 9.
