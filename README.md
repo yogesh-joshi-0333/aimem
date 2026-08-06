@@ -1,10 +1,15 @@
 # aimem
 
-**Persistent, project-scoped memory for any MCP-compatible AI coding assistant.**
+[![npm version](https://img.shields.io/npm/v/aimem-mcp.svg)](https://www.npmjs.com/package/aimem-mcp)
+[![npm downloads](https://img.shields.io/npm/dm/aimem-mcp.svg)](https://www.npmjs.com/package/aimem-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Node.js Version](https://img.shields.io/node/v/aimem-mcp.svg)](package.json)
 
-aimem is a local-first [Model Context Protocol](https://modelcontextprotocol.io) server that gives AI agents — Claude Code, Cursor, Windsurf, Claude Desktop, Gemini CLI, Codex, or anything else that speaks MCP — a persistent memory that survives across chat sessions. Memory lives inside each project's own `.aimem/` folder: no external database, no cloud API, no account, no API key. Everything runs on your machine and never leaves it.
+**A local-first MCP (Model Context Protocol) memory server that gives Claude Code, Cursor, Windsurf, and any other MCP-compatible AI coding assistant persistent, project-scoped memory across chat sessions.**
 
-> **Status:** v0.1.0 — [published on npm](https://www.npmjs.com/package/aimem-mcp) as `aimem-mcp`. Core functionality complete and tested (Phases 1–7). Cross-client validation and real-world daily use are in progress. See [docs/knowledge/setup/current-project-state.md](docs/knowledge/setup/current-project-state.md) for the exact current state.
+aimem solves AI memory loss in long coding sessions: no more re-explaining your architecture, credentials, or past decisions every time you start a new chat. It's an offline, zero-API-key alternative to cloud-based AI memory services — SQLite + local vector search (`sqlite-vec`) + a bundled embedding model, stored inside each project's own `.aimem/` folder. No external database, no cloud API, no account required. Everything runs on your machine and never leaves it.
+
+> **Status:** v0.1.0 — [published on npm as `aimem-mcp`](https://www.npmjs.com/package/aimem-mcp). Core functionality complete and tested (Phases 1–7). Cross-client validation and real-world daily use are in progress. See [docs/knowledge/setup/current-project-state.md](docs/knowledge/setup/current-project-state.md) for the exact current state.
 
 ## Why
 
