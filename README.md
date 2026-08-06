@@ -4,7 +4,7 @@
 
 aimem is a local-first [Model Context Protocol](https://modelcontextprotocol.io) server that gives AI agents — Claude Code, Cursor, Windsurf, Claude Desktop, Gemini CLI, Codex, or anything else that speaks MCP — a persistent memory that survives across chat sessions. Memory lives inside each project's own `.aimem/` folder: no external database, no cloud API, no account, no API key. Everything runs on your machine and never leaves it.
 
-> **Status:** v0.1.0 — core functionality complete and tested (Phases 1–7). Packaging verified via `npm pack` / global install / `npx`. Not yet published to npm; cross-client validation and real-world daily use are in progress. See [docs/knowledge/setup/current-project-state.md](docs/knowledge/setup/current-project-state.md) for the exact current state.
+> **Status:** v0.1.0 — [published on npm](https://www.npmjs.com/package/aimem-mcp) as `aimem-mcp`. Core functionality complete and tested (Phases 1–7). Cross-client validation and real-world daily use are in progress. See [docs/knowledge/setup/current-project-state.md](docs/knowledge/setup/current-project-state.md) for the exact current state.
 
 ## Why
 
@@ -135,4 +135,4 @@ All project documentation lives under [`docs/`](docs/):
 
 ## License
 
-Not yet published under a license — coming with the first public release.
+[MIT](LICENSE) © 2026 Yogesh Joshi

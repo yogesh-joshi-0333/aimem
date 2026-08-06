@@ -2,7 +2,16 @@
   "name": "aimem-mcp",
   "version": "0.1.0",
   "description": "Local-first, project-scoped MCP memory server for AI coding assistants.",
+  "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yogesh-joshi-0333/aimem.git"
+  },
+  "homepage": "https://github.com/yogesh-joshi-0333/aimem#readme",
+  "bugs": {
+    "url": "https://github.com/yogesh-joshi-0333/aimem/issues"
+  },
   "engines": {
     "node": ">=20.11.0 <21"
   },
