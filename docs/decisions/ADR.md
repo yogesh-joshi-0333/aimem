@@ -137,4 +137,17 @@ Append-only log. Never edit a past ADR's decision retroactively — if a decisio
 
 ---
 
+## ADR-011: npm Package Renamed from `aimem` to `aimem-mcp`
+
+**Date:** 2026-08-06
+**Status:** Accepted
+
+**Decision:** The npm package name is `aimem-mcp`, not `aimem`. The installed CLI command remains `aimem` (unaffected — the `bin` field in `package.json` maps the command name `aimem` to `dist/server.js` independently of the package name). The project's own identity, GitHub repo name, source directory names, and all internal documentation continue to refer to the project as "aimem."
+
+**Reason:** The first real `npm publish` attempt was rejected by the registry with `403 Package name too similar to existing package ai-mem`. Investigation confirmed `ai-mem` (published, `github.com/ChrisL108/aimem`) is a directly competing package in the same space — "semantic memory for AI coding assistants," same keywords (`claude-code`, `semantic-memory`, `embeddings`). Rather than accept npm's suggested scoped-name workaround (`@yogesh-joshi/aimem`, which ties the package identity to a personal npm username the project may outgrow) or fight the collision, `aimem-mcp` was chosen: available on the registry, keeps the recognizable "aimem" root intact across every existing doc/ADR/code comment/GitHub repo, and the `-mcp` suffix is accurate (it genuinely is an MCP server) and mildly differentiates it from `ai-mem`'s LanceDB-based, non-MCP-first design.
+
+**Consequences:** Every *package-install* instruction (`npm install -g <name>`, `npx <name>`) must say `aimem-mcp`, not `aimem` — fixed in [README.md](../../README.md) and [knowledge/setup/install-guide.md](../knowledge/setup/install-guide.md). The *CLI command* a user types after installing, and every reference to the project/tool by name in prose, remains `aimem` — no other renaming was needed. `package.json`'s `name` field was changed; nothing else in `package.json` (the `bin` map, `files`, dependencies) required any change.
+
+---
+
 See also: [../RULES.md](../RULES.md), [../requirements/PRD.md](../requirements/PRD.md), [../architecture/system-overview.md](../architecture/system-overview.md).

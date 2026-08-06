@@ -77,7 +77,7 @@ The full reasoning behind every major decision — including two real, non-obvio
 ## Installation
 
 ```bash
-npm install -g aimem
+npm install -g aimem-mcp
 ```
 
 Then register aimem as an MCP server in your AI client's configuration, pointing at the installed binary. **If your Node.js was installed via a version manager (nvm, fnm, volta),** use an absolute path to both `node` and the server entry point rather than a bare `aimem` command — see [docs/knowledge/setup/install-guide.md](docs/knowledge/setup/install-guide.md#troubleshooting) for why and the exact fix.

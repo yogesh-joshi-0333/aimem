@@ -10,7 +10,7 @@ Each requirement is a single testable sentence, numbered `FR-<COMPONENT>-<NUM>`.
 | ID | Requirement |
 |---|---|
 | FR-MCP-01 | The server MUST implement the MCP protocol over stdio transport using `@modelcontextprotocol/sdk`, with no client-specific behavior branches. |
-| FR-MCP-02 | The server MUST be installable and runnable via a single `npx aimem` or `npm i -g aimem` command without additional manual configuration steps. |
+| FR-MCP-02 | The server MUST be installable and runnable via a single `npx aimem-mcp` or `npm i -g aimem-mcp` command without additional manual configuration steps. |
 | FR-MCP-03 | The server MUST register exactly the tool set defined in [architecture/api-design.md](../architecture/api-design.md) at startup and respond to an MCP `list_tools` request with that set. |
 | FR-MCP-04 | The server MUST resolve the current project root as the working directory it was launched from (or an explicit configured path), and locate `.aimem/` relative to it. |
 | FR-MCP-05 | The server MUST function identically when invoked from Claude Code, Cursor, Windsurf, Claude Desktop, Gemini CLI, or Codex, with no code path conditional on client identity. |
