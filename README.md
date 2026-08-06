@@ -85,20 +85,28 @@ The full reasoning behind every major decision — including two real, non-obvio
 npm install -g aimem-mcp
 ```
 
-Then register aimem as an MCP server in your AI client's configuration, pointing at the installed binary. **If your Node.js was installed via a version manager (nvm, fnm, volta),** use an absolute path to both `node` and the server entry point rather than a bare `aimem` command — see [docs/knowledge/setup/install-guide.md](docs/knowledge/setup/install-guide.md#troubleshooting) for why and the exact fix.
+**Claude Code** — register it once, available in every project from then on:
+
+```bash
+claude mcp add aimem-mcp npx aimem-mcp -s user
+```
+
+**Any other MCP client** (Cursor, Windsurf, Claude Desktop, ...) — add to your client's MCP config:
 
 ```json
 {
   "mcpServers": {
-    "aimem": {
-      "command": "node",
-      "args": ["/absolute/path/to/aimem/dist/server.js"]
+    "aimem-mcp": {
+      "command": "npx",
+      "args": ["aimem-mcp"]
     }
   }
 }
 ```
 
-Full prerequisites, verification steps, and troubleshooting: [docs/knowledge/setup/install-guide.md](docs/knowledge/setup/install-guide.md).
+**If your Node.js was installed via a version manager (nvm, fnm, volta)** — MCP clients often can't find `node`/`npx` on `PATH` this way; use absolute paths instead. See [docs/knowledge/setup/install-guide.md](docs/knowledge/setup/install-guide.md#if-your-nodejs-was-installed-via-a-version-manager-nvm-fnm-volta) for the exact fix.
+
+Full install steps, verification, and troubleshooting: [docs/knowledge/setup/install-guide.md](docs/knowledge/setup/install-guide.md). For what actually happens once it's running — how memory gets created and used day to day — see [docs/knowledge/setup/usage-guide.md](docs/knowledge/setup/usage-guide.md).
 
 ## Development
 
@@ -133,6 +141,7 @@ All project documentation lives under [`docs/`](docs/):
 | [docs/knowledge/security-standards.md](docs/knowledge/security-standards.md) | Security principles, data handling, permissions |
 | [docs/knowledge/testing-guide.md](docs/knowledge/testing-guide.md) | Testing rules, test types, examples |
 | [docs/knowledge/setup/install-guide.md](docs/knowledge/setup/install-guide.md) | Install prerequisites, steps, troubleshooting |
+| [docs/knowledge/setup/usage-guide.md](docs/knowledge/setup/usage-guide.md) | How memory actually works day to day — first use, every session after, conflicts, searching |
 | [docs/knowledge/setup/current-project-state.md](docs/knowledge/setup/current-project-state.md) | What exists right now vs. what's still pending |
 | [docs/modules/](docs/modules/) | Per-component design docs (MCP server, storage, embeddings, capture, retrieval, conflict/versioning) |
 | [docs/workflows/](docs/workflows/) | Step-by-step workflow walkthroughs for real usage scenarios |

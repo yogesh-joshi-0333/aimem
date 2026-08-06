@@ -73,7 +73,8 @@ aimem/
 │   │   ├── testing-guide.md
 │   │   └── setup/
 │   │       ├── current-project-state.md
-│   │       └── install-guide.md
+│   │       ├── install-guide.md
+│   │       └── usage-guide.md
 │   ├── modules/
 │   │   ├── mcp-server.md
 │   │   ├── storage-engine.md
