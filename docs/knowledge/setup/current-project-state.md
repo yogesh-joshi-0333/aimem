@@ -74,7 +74,8 @@ aimem/
 │   │   └── setup/
 │   │       ├── current-project-state.md
 │   │       ├── install-guide.md
-│   │       └── usage-guide.md
+│   │       ├── usage-guide.md
+│   │       └── agent-instructions.md
 │   ├── modules/
 │   │   ├── mcp-server.md
 │   │   ├── storage-engine.md

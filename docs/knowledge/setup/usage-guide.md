@@ -74,4 +74,4 @@ If you registered aimem with **user scope** (`claude mcp add aimem-mcp npx aimem
 - **Credentials are stored in plaintext**, in that local `.aimem/memory.db` file, same trust model as a local `.env` file. It's gitignored and never leaves your machine, but treat the file with the same care you'd give any file containing secrets.
 - **No cross-project or team-shared memory in v1.** Each project is fully isolated, and there's no way (yet) to share memory across your team. This is intentional for v1 — see [../../requirements/PRD.md](../../requirements/PRD.md) for the roadmap.
 
-See also: [install-guide.md](install-guide.md), [../error-handling.md](../error-handling.md), [../../workflows/](../../workflows/) for detailed step-by-step flow diagrams.
+See also: [install-guide.md](install-guide.md), [agent-instructions.md](agent-instructions.md) (if your agent keeps using its own memory instead of aimem's), [../error-handling.md](../error-handling.md), [../../workflows/](../../workflows/) for detailed step-by-step flow diagrams.

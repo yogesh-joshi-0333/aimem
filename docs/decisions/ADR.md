@@ -163,4 +163,17 @@ Append-only log. Never edit a past ADR's decision retroactively — if a decisio
 
 ---
 
+## ADR-013: Tool Descriptions Explicitly Say "Prefer This Over Your Own Built-In Memory"; Added a Cross-Agent Instruction-File Doc
+
+**Date:** 2026-08-06
+**Status:** Accepted
+
+**Decision:** All five capture/retrieval tool descriptions (`memory_store`, `memory_scan`, `memory_get_project_context`, `memory_search`, `memory_remember`) now explicitly instruct the calling AI to prefer aimem over any other memory system it may have (e.g. an agent's own built-in session memory), not just describe what the tool does. Added [knowledge/setup/agent-instructions.md](../knowledge/setup/agent-instructions.md) documenting project-level instruction-file snippets (`CLAUDE.md`, `AGENTS.md`, `.cursor/rules/`, etc.) that reinforce this at the project-instruction level, across every major agent's own convention.
+
+**Reason:** Real-world first use (the project owner's first live test in a separate project, connected via a published `aimem-mcp` install) surfaced exactly the risk already flagged in [../requirements/PRD.md](../requirements/PRD.md) Risks: asked to "save all important information," the connected AI agent used its own built-in memory system instead of calling any aimem tool, despite aimem being connected and healthy. Confirmed via `memory_get_project_context` returning `has_memory: false` after the fact — the MCP connection worked correctly; the agent simply chose not to use it for that request.
+
+**Consequences:** This is a mitigation, not a fix — an MCP tool can never force an agent to call it; the agent always chooses per turn. Two levers were used together: (1) tool descriptions now say "PREFERRED" / "MANDATORY" language rather than purely descriptive text, and (2) a documented, copy-paste project-instruction-file snippet gives users a way to reinforce the same instruction at the project level, across any of the 8+ agent conventions surveyed (Claude Code, Cursor, Windsurf, Copilot, Cline, Roo Code, Codex, Gemini CLI), including the emerging `AGENTS.md` cross-tool standard. Neither guarantees compliance — this remains the project's single biggest known risk (see PRD Risks) and should be watched during the ongoing real-world validation period, not considered resolved.
+
+---
+
 See also: [../RULES.md](../RULES.md), [../requirements/PRD.md](../requirements/PRD.md), [../architecture/system-overview.md](../architecture/system-overview.md).

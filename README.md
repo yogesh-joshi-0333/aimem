@@ -142,6 +142,7 @@ All project documentation lives under [`docs/`](docs/):
 | [docs/knowledge/testing-guide.md](docs/knowledge/testing-guide.md) | Testing rules, test types, examples |
 | [docs/knowledge/setup/install-guide.md](docs/knowledge/setup/install-guide.md) | Install prerequisites, steps, troubleshooting |
 | [docs/knowledge/setup/usage-guide.md](docs/knowledge/setup/usage-guide.md) | How memory actually works day to day — first use, every session after, conflicts, searching |
+| [docs/knowledge/setup/agent-instructions.md](docs/knowledge/setup/agent-instructions.md) | Making your AI agent prefer aimem over its own built-in memory — per-agent instruction file snippets |
 | [docs/knowledge/setup/current-project-state.md](docs/knowledge/setup/current-project-state.md) | What exists right now vs. what's still pending |
 | [docs/modules/](docs/modules/) | Per-component design docs (MCP server, storage, embeddings, capture, retrieval, conflict/versioning) |
 | [docs/workflows/](docs/workflows/) | Step-by-step workflow walkthroughs for real usage scenarios |

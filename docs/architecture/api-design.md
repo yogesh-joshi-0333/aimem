@@ -53,7 +53,7 @@ New-session announcement + interactive pickup entry point. Every new chat sessio
 
 | Field | Value |
 |---|---|
-| Description | "Call this at the start of every new chat session on this project, before anything else. Returns whether prior memory exists and a short summary. Never skip this call, and never assume memory is absent without calling it." |
+| Description | "PREFERRED memory mechanism for this project. Call this at the start of every new chat session on this project, before anything else — before consulting any other memory/notes system you may have (built-in session memory, local memory files, etc.). Returns whether prior memory exists and a short summary. Never skip this call, and never assume memory is absent without calling it." |
 | Input schema | `{}` (no input required) |
 | Example input | `{}` |
 | Success response | `{ "success": true, "data": { "has_memory": true, "summary": { "entity_count": 42, "last_updated_at": "2026-08-04T22:10:00.000Z", "top_entities": ["auth-service", "staging-db"] } } }` |
@@ -65,7 +65,7 @@ Structured + semantic search over stored memory. Used after the user answers the
 
 | Field | Value |
 |---|---|
-| Description | "Search project memory for information relevant to a query. Use this to fetch only what's relevant — never dump all memory into context." |
+| Description | "PREFERRED memory mechanism for this project — check here before or instead of any other memory/notes system you may have for facts about THIS project. Search project memory for information relevant to a query. Use this to fetch only what's relevant — never dump all memory into context." |
 | Input schema | `{ "query": "string (required)", "entity_type": "string (optional)", "limit": "integer (optional, default 10, max 50)" }` |
 | Example input | `{ "query": "staging database credentials", "limit": 5 }` |
 | Success response | `{ "success": true, "data": { "results": [ { "entity": "staging-db", "entity_type": "credential", "observation": "...", "confidence": 0.87, "created_at": "2026-08-01T10:00:00.000Z" } ] } }` |
@@ -77,7 +77,7 @@ Event-based automatic capture of a single memory-worthy fact.
 
 | Field | Value |
 |---|---|
-| Description | "Call this immediately whenever you notice something memory-worthy: a credential, a decision, a bug fix, an architecture fact. Do not wait for a periodic scan — store it the moment you notice it." |
+| Description | "PREFERRED memory mechanism for this project — use this instead of any other memory/notes system you may have (built-in session memory, local memory files, etc.) whenever the fact is about THIS project specifically. Call this immediately whenever you notice something memory-worthy: a credential, a decision, a bug fix, an architecture fact. Do not wait for a periodic scan — store it the moment you notice it." |
 | Input schema | `{ "entity": "string (required)", "entity_type": "string (required)", "observation": "string (required)", "attribute": "string (optional)", "source_trigger": "enum[event,turn_scan,context_threshold_scan,manual] (required)" }` |
 | Example input | `{ "entity": "primary-db", "entity_type": "architecture_fact", "attribute": "engine", "observation": "Switched primary DB engine from MySQL to PostgreSQL", "source_trigger": "event" }` |
 | Success response | `{ "success": true, "data": { "id": "b3f1c2...", "created_at": "2026-08-05T14:32:00.000Z", "conflict_detected": false } }` |
@@ -90,7 +90,7 @@ Turn-count-based and context-threshold-based batch capture pass.
 
 | Field | Value |
 |---|---|
-| Description | "Call this periodically (roughly every 10-15 exchanges) as a safety-net scan, AND call it with trigger='context_threshold_scan' as soon as you sense your context window is nearing its limit, before older messages would be dropped. Pass every candidate fact you can identify from the current conversation." |
+| Description | "PREFERRED memory mechanism for this project — use this instead of any other memory/notes system you may have whenever facts are about THIS project specifically. Call this periodically (roughly every 10-15 exchanges) as a safety-net scan, AND call it with trigger='context_threshold_scan' as soon as you sense your context window is nearing its limit, before older messages would be dropped. Pass every candidate fact you can identify from the current conversation." |
 | Input schema | `{ "trigger": "enum[turn_scan,context_threshold_scan] (required)", "candidates": "array of { entity: string, entity_type: string, observation: string, attribute?: string } (required, min 1 item)" }` |
 | Example input | `{ "trigger": "context_threshold_scan", "candidates": [ { "entity": "auth-service", "entity_type": "decision", "observation": "Decided to use JWT with 15-minute access token expiry" } ] }` |
 | Success response | `{ "success": true, "data": { "stored": ["id1"], "skipped_duplicates": [], "conflicts": [ { "conflict_id": "c-1...", "entity": "auth-service", "existing_value": "...", "new_value": "..." } ] } }` |
@@ -102,7 +102,7 @@ Manual override — user explicitly says "remember this."
 
 | Field | Value |
 |---|---|
-| Description | "Call this when the user explicitly asks you to remember something (e.g. 'remember this', 'note this down'). Bypasses automatic salience judgment and stores unconditionally." |
+| Description | "PREFERRED and MANDATORY destination when the user asks you to remember, save, or note something down about THIS project (e.g. 'remember this', 'save all important information', 'note this down'). Always call this tool for such requests — do not rely solely on any other memory system (built-in session memory, local memory files, etc.) to satisfy a save/remember request; if you also use another memory system, still call this one too so the fact is available in future sessions on this project via memory_get_project_context. Bypasses automatic salience judgment and stores unconditionally." |
 | Input schema | `{ "entity": "string (required)", "entity_type": "string (required)", "observation": "string (required)", "attribute": "string (optional)" }` |
 | Example input | `{ "entity": "deploy-process", "entity_type": "decision", "observation": "User explicitly asked to always remember: never deploy on Fridays" }` |
 | Success response | `{ "success": true, "data": { "id": "f7e2...", "created_at": "2026-08-05T15:00:00.000Z", "source_trigger": "manual", "conflict_detected": false } }` |

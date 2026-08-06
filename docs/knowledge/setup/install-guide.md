@@ -136,4 +136,4 @@ No environment variables are required for normal operation. No API keys are requ
 | Slow first tool call | Local embedding model loading into memory on first use (lazy-loaded per server process, not a network download) | Expected one-time per-process warm-up; subsequent calls in the same session are fast |
 | You manually ran `npx aimem-mcp` in a terminal and it just sits there | This is expected — aimem is an MCP *server*, not a CLI tool you run directly. It's waiting for an MCP client to connect over stdio. Press Ctrl+C to stop it; register it via Step 2 instead and let your AI client launch it automatically. |
 
-See also: [usage-guide.md](usage-guide.md), [current-project-state.md](current-project-state.md), [../error-handling.md](../error-handling.md).
+See also: [usage-guide.md](usage-guide.md), [agent-instructions.md](agent-instructions.md) (if your agent keeps using its own memory instead of aimem's), [current-project-state.md](current-project-state.md), [../error-handling.md](../error-handling.md).
