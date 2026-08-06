@@ -9,7 +9,7 @@
 
 aimem solves AI memory loss in long coding sessions: no more re-explaining your architecture, credentials, or past decisions every time you start a new chat. It's an offline, zero-API-key alternative to cloud-based AI memory services — SQLite + local vector search (`sqlite-vec`) + a bundled embedding model, stored inside each project's own `.aimem/` folder. No external database, no cloud API, no account required. Everything runs on your machine and never leaves it.
 
-> **Status:** v0.1.0 — [published on npm as `aimem-mcp`](https://www.npmjs.com/package/aimem-mcp). Core functionality complete and tested (Phases 1–7). Cross-client validation and real-world daily use are in progress. See [docs/knowledge/setup/current-project-state.md](docs/knowledge/setup/current-project-state.md) for the exact current state.
+> **Status:** v0.1.1 — [published on npm as `aimem-mcp`](https://www.npmjs.com/package/aimem-mcp). Core functionality complete and tested (Phases 1–7). Cross-client validation and real-world daily use are in progress. See [docs/knowledge/setup/current-project-state.md](docs/knowledge/setup/current-project-state.md) for the exact current state.
 
 ## Why
 

@@ -5,8 +5,9 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { realpathSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, realpathSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { AIMEM_DIR_NAME, MEMORY_DB_FILE_NAME } from "./config.js";
 import { CaptureEngine } from "./capture-engine/capture-engine.js";
 import type { CaptureCandidate } from "./capture-engine/types.js";
@@ -35,6 +36,14 @@ import type { SearchQueryInput } from "./retrieval-engine/types.js";
 import { StorageEngine } from "./storage-engine/storage-engine.js";
 import { ensureAimemGitignored } from "./storage-engine/ensure-gitignore.js";
 import type { SourceTrigger } from "./storage-engine/types.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PACKAGE_ROOT = join(__dirname, "..");
+
+function readPackageVersion(): string {
+  const packageJson = JSON.parse(readFileSync(join(PACKAGE_ROOT, "package.json"), "utf-8")) as { version: string };
+  return packageJson.version;
+}
 
 export interface ServerDependencies {
   readonly storage: StorageEngine;
@@ -153,7 +162,7 @@ export async function startServer(explicitProjectRoot?: string): Promise<Started
   const router = createToolRouter(deps);
 
   const server = new Server(
-    { name: "aimem", version: "0.1.0" },
+    { name: "aimem", version: readPackageVersion() },
     { capabilities: { tools: {} } },
   );
 

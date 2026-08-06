@@ -150,4 +150,17 @@ Append-only log. Never edit a past ADR's decision retroactively — if a decisio
 
 ---
 
+## ADR-012: Server Reports Its MCP Protocol Version by Reading `package.json`, Not a Hardcoded String
+
+**Date:** 2026-08-06
+**Status:** Accepted
+
+**Decision:** `server.ts` reads its version for the MCP `Server` constructor (`{ name: "aimem", version: ... }`) from the installed package's own `package.json` at runtime, rather than a hardcoded string literal.
+
+**Reason:** The version reported to MCP clients (`server.js:156`, previously `version: "0.1.0"` hardcoded) drifted out of sync with `package.json`'s `version` field the moment `package.json` was bumped to `0.1.1` for a docs-only npm republish — found while updating version references for that republish. A hardcoded second copy of the version number is exactly the kind of easy-to-forget duplication this project has otherwise avoided (see `EMBEDDING_MODEL_NAME`, `AIMEM_DIR_NAME`, etc. in `config.ts`, all single-sourced constants).
+
+**Consequences:** `server.ts` resolves its own package root the same way `embedding-engine.ts` already does (via `fileURLToPath(import.meta.url)` + relative `join`), then reads and parses `package.json` once at startup. This has a small, one-time startup cost (a synchronous file read) that's negligible next to the embedding model's own lazy-load cost, and permanently eliminates the two-places-to-update problem — every future version bump only requires changing `package.json`.
+
+---
+
 See also: [../RULES.md](../RULES.md), [../requirements/PRD.md](../requirements/PRD.md), [../architecture/system-overview.md](../architecture/system-overview.md).
