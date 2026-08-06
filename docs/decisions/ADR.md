@@ -176,4 +176,17 @@ Append-only log. Never edit a past ADR's decision retroactively — if a decisio
 
 ---
 
-See also: [../RULES.md](../RULES.md), [../requirements/PRD.md](../requirements/PRD.md), [../architecture/system-overview.md](../architecture/system-overview.md).
+## ADR-014: Rejected Feature-Parity Chase Against ai-memory-mcp; Phase 9 Invests in Quality Within Existing Scope Instead
+
+**Date:** 2026-08-06
+**Status:** Accepted
+
+**Decision:** After a source-verified competitive comparison against `alphaonedev/ai-memory-mcp` (a mature, enterprise-oriented MCP memory project — namespace/team/org visibility, Postgres+Apache AGE at scale, Ed25519 write attestation, distributed multi-agent coordination, 101 MCP tools at full profile), the project explicitly does **not** adopt any of that feature set. Phase 9 ([implementation/phases.md](../implementation/phases.md)) instead invests in reliability, semantic search quality, test depth, and a local inspection CLI — all strictly within aimem's existing project-scoped, single-user, zero-dependency identity.
+
+**Reason:** ai-memory-mcp's feature set exists to solve a different problem — team/org-shared memory and multi-agent coordination at scale — which aimem's own PRD explicitly lists as v1 (and likely permanent) non-goals. Copying those features would not make aimem "more accurate or useful for everyone"; it would dilute the one differentiated claim the earlier build-vs-adopt research (ADR-001) found genuinely unfilled in the market: memory that lives inside the project folder itself, with zero setup and zero external dependencies. Chasing a differently-scoped competitor's feature count is a common trap that produces a worse, later-arriving version of someone else's product rather than a better version of your own. The one part of the comparison worth taking seriously — ai-memory-mcp's 2,400+ tests and ~92% coverage — is about engineering discipline, not scope, and is addressed directly in Phase 9C without any scope expansion.
+
+**Consequences:** aimem's roadmap after Phase 8 branches from "feature-parity chase" toward "make the single project-scoped memory file bulletproof, fast, and inspectable." This preserves the project's original identity and the reasoning in ADR-001 through ADR-006, but means aimem will continue to look "smaller" than ai-memory-mcp on any feature-count comparison — an accepted trade-off, not an oversight. If real-world usage later surfaces a genuine, validated need for team-shared memory or multi-agent coordination, that requires its own discovery session and ADR, not a reflexive response to a competitor's comparison table.
+
+---
+
+See also: [../RULES.md](../RULES.md), [../requirements/PRD.md](../requirements/PRD.md), [../architecture/system-overview.md](../architecture/system-overview.md), [implementation/phases.md](../implementation/phases.md) Phase 9.

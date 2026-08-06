@@ -5,9 +5,9 @@
 
 ## Overall Status
 
-**Phase 8 Partially Complete — Awaiting Project Owner for Remaining Subtasks**
+**Phase 8 Published & Verified in Claude Code — Phase 9 Planned, Not Started**
 
-All code is written and verified (67 unit tests, 9 e2e tests, all passing). Packaging is verified end-to-end via `npm pack` + a real global install + `npx` invocation. Two critical, user-impacting bugs were found and fixed during that testing (see ADR-009, ADR-010) — both were invisible to all prior e2e testing because they only manifest when the compiled binary is invoked through a symlink, which is exactly how real installs work. What remains (cross-client configuration in Claude Code/Cursor, npm registry publish, daily real-world validation) genuinely requires the project owner's own machine, accounts, and time, and cannot be completed by an agent.
+`aimem-mcp` is live on npm (v0.1.1) and GitHub, verified working end-to-end in a real Claude Code session against the published package. Two critical packaging bugs (ADR-009, ADR-010) and one real-world tool-preference gap (ADR-013) were found and fixed via actual usage, not just testing. Phase 9 (reliability/backup, semantic search quality, test depth, a local inspection CLI) is planned but not started — see [../../implementation/phases.md](../../implementation/phases.md) and ADR-014, which explicitly rejects chasing feature parity with a differently-scoped competitor (`ai-memory-mcp`) in favor of deepening quality within aimem's existing project-scoped identity. Cross-client verification beyond Claude Code, and ongoing daily-use validation, remain with the project owner.
 
 ## What Exists Right Now
 
@@ -138,7 +138,8 @@ aimem/
 | Phase 5 — New-session pickup + manual override | Completed |
 | Phase 6 — Conflict detection + versioning | Completed |
 | Phase 7 — Error handling + concurrency verification | Completed |
-| Phase 8 — Packaging/install/publish + cross-client testing | Partially Completed — autonomous subtasks done; cross-client config, npm publish, and daily-use validation await the project owner |
+| Phase 8 — Packaging/install/publish + cross-client testing | Partially Completed — published to npm (`aimem-mcp` v0.1.0, v0.1.1) and GitHub; verified working in Claude Code; second-client verification and ongoing daily-use validation still open |
+| Phase 9 — Reliability, search quality, test depth, inspection CLI | Not Started — see [implementation/phases.md](../../implementation/phases.md) Phase 9, [decisions/ADR.md](../../decisions/ADR.md) ADR-014 |
 
 ## Update Instruction
 

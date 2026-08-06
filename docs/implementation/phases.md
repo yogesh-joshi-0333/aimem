@@ -145,4 +145,45 @@
 
 Also found and fixed: `scripts/bundle-embedding-model.mjs` was missing from `package.json`'s `files` allowlist, so a real installed package couldn't find its own `postinstall` script.
 
+## Phase 9 — Reliability, Search Quality, Test Depth, and a Local Inspection CLI
+
+**Goal:** Strengthen the project-scoped memory experience itself — make the single `.aimem/memory.db` file bulletproof, make semantic search actually find the right memory, deepen test coverage the way a mature project would, and give the user a way to see what's stored without needing an AI client — **without** expanding scope into multi-agent, team/org sharing, federation, or any enterprise surface. Those remain explicitly out of scope; see [requirements/PRD.md](../requirements/PRD.md) Non-Goals.
+
+**Context:** Triggered by a competitive comparison against `ai-memory-mcp` (a much larger, enterprise-oriented MCP memory project — namespaces, federation, Ed25519 attestation, 101 tools). The project owner explicitly rejected copying that feature set — those features would abandon aimem's actual identity (folder-scoped, zero-dependency, dead-simple) in favor of competing on a different project's terms. This phase instead picks the parts of that comparison that are genuinely about *quality*, not scope, and applies them to the thing aimem already does.
+
+**Completion criteria:** A corrupted `.aimem/memory.db` can be automatically backed up and optionally rebuilt without data loss beyond the corrupted file itself; semantic search demonstrably returns better top-1/top-5 relevance on a benchmark set of realistic project-memory queries; test coverage is measured and has grown with real edge-case coverage, not just count; a local `aimem inspect` CLI can list/search/export a project's memory without any MCP client attached.
+
+### 9A — Reliability: Backup Before Risky Writes + Corruption Recovery Path
+
+- [ ] Design a lightweight backup strategy: before any schema migration or `memory_confirm_update` write, copy `.aimem/memory.db` to `.aimem/memory.db.bak` (single rolling backup, not a full history — keep this simple, not a versioned backup system).
+- [ ] Implement `StorageEngine` backup-before-write hook, gated so it never runs on the hot path of a normal `memory_store`/`memory_scan` (only before genuinely risky operations: migrations, confirmed conflict updates).
+- [ ] Add a `memory_repair` or CLI-only repair path: on `StorageCorruptedError`, attempt to recover via SQLite's own recovery tools (`.recover` / `PRAGMA integrity_check` diagnostics) before giving up, and if recovery fails, restore from `.aimem/memory.db.bak` with the user's explicit confirmation (never automatic — silent data substitution is exactly what Rule 11 already forbids).
+- [ ] Write tests: simulate corruption mid-write, confirm backup exists and is valid; simulate unrecoverable corruption, confirm restore-from-backup path works and requires confirmation.
+- [ ] Update [knowledge/error-handling.md](../knowledge/error-handling.md) and [decisions/ADR.md](../decisions/ADR.md) with the new error/recovery flow.
+
+### 9B — Semantic Search Quality
+
+- [ ] Build a small, realistic benchmark set of project-memory-style queries and expected top-1/top-5 matches (e.g. "staging db password" → the credential fact; "why did we pick postgres" → the decision fact) — check this into `src/embedding-search-engine/__tests__/` as a fixture, not a throwaway script.
+- [ ] Measure current top-1/top-5 accuracy on that benchmark with the existing `Xenova/all-MiniLM-L6-v2` model as a baseline.
+- [ ] Evaluate whether a larger/better local embedding model (still ONNX, still bundleable, still offline) improves benchmark accuracy meaningfully — weigh against the install-size cost (currently ~23MB; check what a step up costs before committing).
+- [ ] If a model swap is justified, update `EMBEDDING_MODEL_NAME`/`EMBEDDING_DIMENSIONS` in `config.ts` and the `sqlite-vec` schema dimension, re-run the benchmark, and document the trade-off in a new ADR.
+- [ ] If a model swap isn't justified, document why not (e.g. "diminishing returns past current model for this benchmark size") so this isn't silently revisited later without cause.
+
+### 9C — Test Coverage Depth
+
+- [ ] Add a coverage tool (`vitest --coverage`, likely via `@vitest/coverage-v8` — check licensing/size before adding as a new dependency per RULES.md Rule 1) and establish a baseline coverage percentage across all modules.
+- [ ] Identify genuinely untested edge cases per module (not padding — real gaps): e.g. `memory_scan` with a mix of conflicts *and* duplicates *and* new candidates in one batch; concurrent conflict resolution from two sessions on the same conflict_id; embedding failure mid-`memory_scan` batch.
+- [ ] Add tests for each real gap found; re-measure coverage.
+- [ ] Record the achieved coverage percentage in [knowledge/testing-guide.md](../knowledge/testing-guide.md) as a maintained baseline, with a rule that coverage must not regress below it in future phases.
+
+### 9D — Local Inspection CLI (`aimem inspect`)
+
+- [ ] Design a minimal CLI subcommand set: `aimem inspect list` (list entities/observations in the current project's `.aimem/memory.db`), `aimem inspect search <query>` (same semantic search `memory_search` uses, callable without an MCP client), `aimem inspect export` (dump to JSON for backup/migration).
+- [ ] Implement as a genuinely separate entry point (`src/cli/inspect.ts` or similar) that reuses `StorageEngine`/`RetrievalEngine` directly — no MCP protocol involved, no new tool exposed to AI clients, purely a human-facing local utility.
+- [ ] Wire a second `bin` entry in `package.json` (e.g. `aimem-inspect`) or a subcommand dispatch inside the existing `aimem` binary — decide based on which reads more naturally; document the choice.
+- [ ] Write tests: real temp `.aimem/memory.db`, populate via `StorageEngine` directly, run each CLI subcommand, assert output.
+- [ ] Update [knowledge/setup/usage-guide.md](../knowledge/setup/usage-guide.md) with real usage examples once built.
+
+**Explicitly not doing, and why:** no Postgres/multi-writer backend (violates the zero-external-dependency identity), no namespaces/team/org visibility (violates project-scoped-only), no cryptographic write attestation or audit-trail hash chain (no multi-party trust boundary exists in a single-user, single-project tool to justify it), no policy engine or agent-coordination primitives (no multi-agent surface in v1). If real usage later surfaces a genuine need for any of these, it gets its own discovery-and-ADR pass — not a reflexive feature-parity chase against a differently-scoped competitor.
+
 See also: [estimation.md](estimation.md), [../AGENT-LOG.md](../AGENT-LOG.md), [../RULES.md](../RULES.md).

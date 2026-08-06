@@ -44,4 +44,5 @@
 | Phase 5 — New-session pickup + manual override | Completed | Completed 2026-08-06. |
 | Phase 6 — Conflict detection + versioning | Completed | Completed 2026-08-06. |
 | Phase 7 — Error handling + concurrency verification | Completed | Completed 2026-08-06. Found/fixed a server-crash-on-corrupted-file bug (ADR-008). |
-| Phase 8 — Packaging/install/publish + cross-client testing | Not Started | |
+| Phase 8 — Packaging/install/publish + cross-client testing | Partially Completed | Published `aimem-mcp` v0.1.0 and v0.1.1 to npm; GitHub repo live; found/fixed 2 real packaging bugs (shebang, `isMainModule` symlink resolution — ADR-009/010); real-world first use surfaced the tool-preference risk (ADR-013). Cross-client verification beyond Claude Code, and ongoing daily-use validation, remain with the project owner. |
+| Phase 9 — Reliability, search quality, test depth, inspection CLI | Not Started | Added 2026-08-06 after a competitive comparison against ai-memory-mcp. Deliberately does not chase that project's enterprise feature set (multi-agent, federation, attestation) — stays inside project-scoped memory, improves quality within that scope. See [decisions/ADR.md](decisions/ADR.md) ADR-014. |
