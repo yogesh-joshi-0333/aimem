@@ -1,0 +1,47 @@
+# aimem — AGENT-LOG.md
+
+**Version:** v0.1.0-planning
+**Date:** 2026-08-05
+
+## How To Use This File
+
+1. **Before starting** any task: add a new row (or update the existing row) in the Task Log below with Status = `In Progress` and fill in `Started` with today's date/time.
+2. **After completing** the task: update that same row with Status = `Completed`, fill in `Completed` with today's date/time, and write a one-line summary in `Notes`.
+3. **If blocked**: set Status = `Blocked`, and explain exactly what is blocking progress in `Notes` before stopping work. Do not leave a task silently unfinished without a `Blocked` row.
+
+## Status Legend
+
+| Status | Meaning |
+|---|---|
+| Pending | Task identified, not yet started |
+| In Progress | Actively being worked on right now |
+| Completed | Done, tests passing (if applicable), docs updated |
+| Blocked | Cannot proceed — reason recorded in Notes |
+
+## Task Log
+
+| # | Phase | Task | Agent | Status | Started | Completed | Notes |
+|---|---|---|---|---|---|---|---|
+| 1 | Phase 0 (Docs) | Create full documentation structure | Claude (docs agent) | Completed | 2026-08-05 | 2026-08-05 | Created README, RULES, AGENT-LOG, PROMPT, requirements/, architecture/, implementation/, knowledge/, modules/, workflows/, decisions/ per spec. |
+| 2 | Phase 1 | Project scaffold + MCP server skeleton (all 9 tasks) | Claude | Completed | 2026-08-05 | 2026-08-05 | Real MCP `Server` + `StdioServerTransport` wired via `ToolRouter` (empty tool set); logger writes structured JSON to stderr only; e2e smoke test spawns compiled server and confirms `list_tools` returns `[]`; build/lint/test/test:e2e all pass. Corrected `@typescript-eslint` version pin (see ADR-007) and added `globals` dep (RULES.md updated same session). |
+| 3 | Phase 2 | SQLite storage engine + entity/relation/observation/version/conflict schema (all 10 tasks) | Claude | Completed | 2026-08-05 | 2026-08-05 | `StorageEngine` class with migrations (001-init-schema, 002-conflict-versioning), full CRUD, WAL mode, 0600/0700 permissions, `.gitignore` auto-append, transaction helper. Fixed a real bug found by tests: `better-sqlite3`'s `new Database()` throws at open-time (not just at `integrity_check`) for non-SQLite garbage files — reclassified to `StorageCorruptedError`; documented in error-handling.md. 19 unit tests passing (entities/observations/relations/versioning/conflicts/transactions/concurrency/corrupted-file/gitignore). |
+| 4 | Phase 3 | sqlite-vec + local embedding model integration (all 8 tasks) | Claude | Completed | 2026-08-05 | 2026-08-05 | `EmbeddingEngine` (transformers.js, Xenova/all-MiniLM-L6-v2, 384-dim, offline-only via `env.allowRemoteModels=false`), postinstall bundling script (`scripts/bundle-embedding-model.mjs`, ~23MB), `sqlite-vec` virtual table + new `observation_embeddings` mapping table (migration 003 — UUID observation IDs need an int rowid bridge to `vec0`, not foreseen in original module doc; doc updated). Fixed a real bug: `crypto.randomInt` max range is 2^48, not `Number.MAX_SAFE_INTEGER`. 22 fast tests passing (unit+integration+offline no-fetch-call proof) plus a separate ~24s performance test (5,000 real embeddings, sub-200ms search, FR-STORE-07) isolated into `npm run test:performance`, excluded from default `npm test` — documented in testing-guide.md. |
+| 5 | Phase 4 | Automatic capture tools: memory_store, memory_scan (all 7 tasks) | Claude | Completed | 2026-08-05 | 2026-08-06 | `CaptureEngine` (store/scan/remember), `dedup.ts` (Levenshtein-based similarity, 0.95 threshold), real `ajv`-backed JSON Schema validation wired into `ToolRouter` (new direct dep, RULES.md updated), tool descriptions from api-design.md wired verbatim. Fixed two real bugs found via e2e testing: (1) `tsc` doesn't copy `.sql` migration files into `dist/` — server crashed on first real run outside `src/`; added a `copy-migrations` build step (documented in coding-standards.md). (2) the e2e test spawned the server with no explicit `cwd`, silently creating a real `.aimem/` in the aimem repo's own root as a side effect of testing — fixed to use an isolated `mkdtemp` project dir per test (documented in testing-guide.md). 37 fast tests + 2 e2e tests passing (list_tools now returns the 2 real tools; a live memory_store round-trip is verified over real stdio). |
+| 6 | Phase 5 | New-session pickup + manual override: memory_get_project_context, memory_search, memory_remember (all 6 tasks) | Claude | Completed | 2026-08-06 | 2026-08-06 | `RetrievalEngine` (getProjectContext with recency-ranked top_entities, search with entity_type filter + vector ranking + MAX_SEARCH_LIMIT clamp), all 3 tools wired into server.ts (now 5 tools total). Added `StorageEngine.getTopEntitiesByRecentActivity()`. Rewrote e2e test's stale 2-tool assertion to the real 5-tool set; added a full cross-process new-session-pickup round trip (fresh → populate → new server process → context+search reflect state) and a memory_remember e2e case. 43 fast tests + 4 e2e tests passing, no repo pollution. |
+| 7 | Phase 6 | Conflict detection + versioning: memory_confirm_update, wired into memory_store/memory_scan (all 6 tasks) | Claude | Completed | 2026-08-06 | 2026-08-06 | `ConflictVersioningEngine` (detectConflict, confirmUpdate — transactional archive+update on confirm), `memory_confirm_update` tool + `CONFLICT_NOT_FOUND` error classification wired into `ToolRouter`. `CaptureEngine.store`/`scan`/`remember` all route through conflict detection before writing. Found and fixed a real pre-existing timing bug (not introduced this phase): `StorageEngine.getTopEntitiesByRecentActivity` had no tiebreaker for same-millisecond writes, causing an intermittently flaky Phase 5 test — fixed with a `rowid`-based secondary sort key, verified deterministic across 5 repeated runs. 53 fast tests + 5 e2e tests passing (incl. a full conflict round trip: store → conflict detected → confirm → version 2 → unknown-conflict-id error), no repo pollution. |
+| 8 | Phase 7 | Error handling audit + exact-message test coverage + concurrency verification across all tools (all 6 tasks) | Claude | Completed | 2026-08-06 | 2026-08-06 | Found and fixed a critical bug: server crashed the entire process (not a graceful per-call error) when `.aimem/memory.db` was corrupted, because `StorageEngine` was constructed eagerly at startup — fixed via `LazyServerDependencies` (ADR-008). Added explicit `EmbeddingModelUnavailableError` classification in `ToolRouter` (previously safe only by fallthrough accident). New tests: `tool-router.test.ts` (8, FR-ERR-04 leak audit with real assertions, not just a manual read-through), `error-messages.test.ts` (6, exact-string match against error-handling.md for every code), e2e missing-file/corrupted-file/two-process-concurrency cases (3 new, total e2e now 8). 67 fast tests + 8 e2e tests passing, no repo pollution. |
+| 9 | Phase 8 | Packaging/install/publish + cross-client testing (partial — see Notes) | Claude | In Progress | 2026-08-06 | | **Autonomous subtasks completed** (npm pack, local global install to an isolated prefix, npx invocation, install-guide troubleshooting): found and fixed two critical, user-impacting packaging bugs invisible to all prior e2e testing — (1) missing `#!/usr/bin/env node` shebang, (2) `isMainModule`'s `process.argv[1]` vs `import.meta.url` comparison always false when invoked through a symlink (the actual mechanism `npm install -g`/`npx` use for `bin` entries) — see ADR-009 and ADR-010. Also fixed `files` allowlist missing `scripts/`. Added a regression e2e test (symlink invocation) verified to fail pre-fix and pass post-fix. **Remaining subtasks genuinely require the project owner** (Claude Code/Cursor cross-client config, npm publish, daily real-world validation) — explicitly NOT marked done; awaiting the owner. **Security note:** the owner pasted live GitHub and npm tokens directly into chat; those tokens must not be used by an agent and should be revoked/regenerated by the owner regardless of any other outcome — publishing must happen via the owner running `npm login`/`gh auth login` interactively in their own terminal, never via a token shared in this conversation. |
+
+## Phase Completion Summary
+
+| Phase | Status | Notes |
+|---|---|---|
+| Phase 0 — Documentation | Completed | Full doc structure created 2026-08-05. |
+| Phase 1 — Project scaffold + MCP server skeleton | Completed | Completed 2026-08-05. See [implementation/phases.md](implementation/phases.md) |
+| Phase 2 — SQLite storage engine + entity/relation schema | Completed | Completed 2026-08-05. |
+| Phase 3 — sqlite-vec + local embedding model integration | Completed | Completed 2026-08-05. |
+| Phase 4 — Automatic capture tools (three-tier trigger) | Completed | Completed 2026-08-06. |
+| Phase 5 — New-session pickup + manual override | Completed | Completed 2026-08-06. |
+| Phase 6 — Conflict detection + versioning | Completed | Completed 2026-08-06. |
+| Phase 7 — Error handling + concurrency verification | Completed | Completed 2026-08-06. Found/fixed a server-crash-on-corrupted-file bug (ADR-008). |
+| Phase 8 — Packaging/install/publish + cross-client testing | Not Started | |
