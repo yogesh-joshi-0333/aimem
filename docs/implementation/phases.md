@@ -151,7 +151,7 @@ Also found and fixed: `scripts/bundle-embedding-model.mjs` was missing from `pac
 
 **Context:** Triggered by a competitive comparison against `ai-memory-mcp` (a much larger, enterprise-oriented MCP memory project — namespaces, federation, Ed25519 attestation, 101 tools). The project owner explicitly rejected copying that feature set — those features would abandon aimem's actual identity (folder-scoped, zero-dependency, dead-simple) in favor of competing on a different project's terms. This phase instead picks the parts of that comparison that are genuinely about *quality*, not scope, and applies them to the thing aimem already does.
 
-**Completion criteria:** A corrupted `.aimem/memory.db` can be automatically backed up and optionally rebuilt without data loss beyond the corrupted file itself; semantic search demonstrably returns better top-1/top-5 relevance on a benchmark set of realistic project-memory queries; test coverage is measured and has grown with real edge-case coverage, not just count; a local `aimem inspect` CLI can list/search/export a project's memory without any MCP client attached.
+**Completion criteria:** A corrupted `.aimem/memory.db` can be automatically backed up and optionally rebuilt without data loss beyond the corrupted file itself; semantic search demonstrably returns better top-1/top-5 relevance on a benchmark set of realistic project-memory queries after the `bge-small-en-v1.5` evaluation; keyword search and vector search are blended so exact-identifier queries no longer depend solely on embedding similarity; a fact can be explicitly marked outdated without requiring a replacement value; test coverage is measured and has grown with real edge-case coverage, not just count; a local `aimem inspect` CLI can list/search/export a project's memory without any MCP client attached.
 
 ### 9A — Reliability: Backup Before Risky Writes + Corruption Recovery Path
 
@@ -165,9 +165,24 @@ Also found and fixed: `scripts/bundle-embedding-model.mjs` was missing from `pac
 
 - [ ] Build a small, realistic benchmark set of project-memory-style queries and expected top-1/top-5 matches (e.g. "staging db password" → the credential fact; "why did we pick postgres" → the decision fact) — check this into `src/embedding-search-engine/__tests__/` as a fixture, not a throwaway script.
 - [ ] Measure current top-1/top-5 accuracy on that benchmark with the existing `Xenova/all-MiniLM-L6-v2` model as a baseline.
-- [ ] Evaluate whether a larger/better local embedding model (still ONNX, still bundleable, still offline) improves benchmark accuracy meaningfully — weigh against the install-size cost (currently ~23MB; check what a step up costs before committing).
-- [ ] If a model swap is justified, update `EMBEDDING_MODEL_NAME`/`EMBEDDING_DIMENSIONS` in `config.ts` and the `sqlite-vec` schema dimension, re-run the benchmark, and document the trade-off in a new ADR.
-- [ ] If a model swap isn't justified, document why not (e.g. "diminishing returns past current model for this benchmark size") so this isn't silently revisited later without cause.
+- [ ] Evaluate `bge-small-en-v1.5` as the replacement model — same 384 dimensions, same size class (~size-neutral swap, not a bundle-size regression), and consistently better on public retrieval benchmarks than MiniLM as of the 2026 research sweep (see [decisions/ADR.md](../decisions/ADR.md) ADR-015). This is a candidate to confirm on the benchmark, not an open-ended model search — do not evaluate significantly larger models (e.g. anything approaching or exceeding ~500MB) given the "bundled at install, zero network calls" constraint.
+- [ ] If `bge-small-en-v1.5` measurably improves the benchmark, update `EMBEDDING_MODEL_NAME` in `config.ts` (dimensions stay 384, so no `sqlite-vec` schema change needed), re-run the benchmark, and record the before/after numbers in a new ADR.
+- [ ] If it doesn't measurably improve the benchmark, document why not so this isn't silently revisited later without cause.
+
+### 9E — Hybrid Search Re-Ranking (Keyword + Vector)
+
+- [ ] `memory_search` currently ranks purely by vector similarity (`sqlite-vec` distance). Add a keyword/full-text signal alongside it — SQLite's built-in FTS5 over `observations.observation` is sufficient; no new dependency needed.
+- [ ] Combine both signals into a single ranked result (e.g. a simple weighted blend of normalized FTS rank and vector distance) so an exact term match (a credential name, an env var, a literal identifier) surfaces reliably even when it wouldn't rank highly on embedding similarity alone.
+- [ ] Write tests proving the specific failure mode this fixes: a query containing an exact identifier that a pure-vector search would rank low, now ranking first.
+- [ ] Document the ranking formula in [modules/retrieval-engine.md](../modules/retrieval-engine.md) so it isn't a black box a future change silently breaks.
+
+### 9F — Explicit Stale-Fact Invalidation
+
+- [ ] Add a way to mark an existing observation as outdated *without* a replacement value — distinct from `memory_confirm_update`'s replace-with-new-value flow, since some facts just stop being true with nothing to swap in (e.g. "we no longer use Redis," with no successor fact).
+- [ ] Design as a small extension of the existing conflict/versioning engine and schema (`observation_versions` already tracks superseded values) rather than a new subsystem — an invalidated observation is versioned like any update, just with no new live value.
+- [ ] Decide the tool-surface shape: likely folds into `memory_confirm_update` (a third `action` value, e.g. `"invalidate"`) rather than a brand-new tool, to keep the tool count at 6.
+- [ ] `memory_search`/`memory_get_project_context` must exclude invalidated observations from normal results while keeping them queryable via version history.
+- [ ] Write tests: invalidate an observation, confirm it's excluded from search, confirm it's still visible in version history.
 
 ### 9C — Test Coverage Depth
 
@@ -184,6 +199,6 @@ Also found and fixed: `scripts/bundle-embedding-model.mjs` was missing from `pac
 - [ ] Write tests: real temp `.aimem/memory.db`, populate via `StorageEngine` directly, run each CLI subcommand, assert output.
 - [ ] Update [knowledge/setup/usage-guide.md](../knowledge/setup/usage-guide.md) with real usage examples once built.
 
-**Explicitly not doing, and why:** no Postgres/multi-writer backend (violates the zero-external-dependency identity), no namespaces/team/org visibility (violates project-scoped-only), no cryptographic write attestation or audit-trail hash chain (no multi-party trust boundary exists in a single-user, single-project tool to justify it), no policy engine or agent-coordination primitives (no multi-agent surface in v1). If real usage later surfaces a genuine need for any of these, it gets its own discovery-and-ADR pass — not a reflexive feature-parity chase against a differently-scoped competitor.
+**Explicitly not doing, and why:** no Postgres/multi-writer backend, no Neo4j/graph-DB backend (both violate the zero-external-dependency identity — confirmed during the 2026 research sweep that no embedded/local mode exists for either), no namespaces/team/org visibility (violates project-scoped-only), no cryptographic write attestation or audit-trail hash chain (no multi-party trust boundary exists in a single-user, single-project tool to justify it), no policy engine, agent-coordination primitives, or execution-checkpointing/episodic-event-log features (all assume a different product — memory of agent actions/workflows, not memory of project facts — a real scope decision, not a technical blocker; revisit only via its own discovery pass), and no dependency on MCP Sampling/Elicitation (deprecated as of the 2026-07-28 MCP spec). If real usage later surfaces a genuine need for any of these, it gets its own discovery-and-ADR pass — not a reflexive feature-parity chase against a differently-scoped competitor.
 
 See also: [estimation.md](estimation.md), [../AGENT-LOG.md](../AGENT-LOG.md), [../RULES.md](../RULES.md).

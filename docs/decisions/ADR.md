@@ -189,4 +189,17 @@ Append-only log. Never edit a past ADR's decision retroactively — if a decisio
 
 ---
 
+## ADR-015: Six-Source Technical Research Sweep — Three Adoptions, Confirmed Architecture, Explicit Rejections
+
+**Date:** 2026-08-06
+**Status:** Accepted
+
+**Decision:** Following a broader technical research pass (neo4j-contrib/mcp-neo4j, scanadi/mcp-ai-memory, rohitg00/agentmemory, a Mem0 status recheck, an architectural-patterns article, and a general 2026 embedded-vector-search/embedding-model sweep), three concrete, research-backed improvements were added to Phase 9: (1) evaluate `bge-small-en-v1.5` as a same-size, same-dimension (384) replacement for `all-MiniLM-L6-v2` (Phase 9B), (2) add hybrid keyword+vector re-ranking to `memory_search` using SQLite FTS5 already available with no new dependency (Phase 9E), (3) add explicit stale-fact invalidation as a small extension of the existing conflict/versioning engine, likely a third `memory_confirm_update` action value rather than a new tool (Phase 9F).
+
+**Reason:** Every other researched project's distinguishing feature required infrastructure aimem deliberately doesn't run — Neo4j (no embedded mode exists), Postgres+pgvector+Redis (scanadi/mcp-ai-memory), a global `~/.agentmemory` store with Docker viewer (agentmemory), Qdrant+Postgres (Mem0, unchanged on recheck). None of these were adoptable without abandoning the project-folder-scoped, zero-dependency identity ADR-001 through ADR-006 already established. Separately, `sqlite-vec` was independently confirmed (2026 sources) as the current best embedded vector solution for this scale, validating aimem's existing choice rather than suggesting a replacement. Of five architectural memory patterns surveyed (ML Mastery), two were inapplicable to a single-user tool (context-window buffering is baseline hygiene already assumed; multi-tenant segregation is moot when there's one user), two represent genuine scope expansion into agent-action/workflow memory rather than fact memory (execution checkpointing, episodic event logs — deliberately deferred, not rejected outright, pending a real use case), and one (semantic memory with staleness handling) mapped directly onto an existing gap next to aimem's current conflict engine.
+
+**Consequences:** Phase 9 grows by two subsections (9E, 9F) beyond the original four (9A–9D), all still inside the existing single-file, single-user, zero-dependency architecture — no new external dependency, no new runtime, no scope creep into multi-agent or multi-tenant territory. The embedding model swap (9B) is now a specific, falsifiable evaluation (benchmark `bge-small-en-v1.5` against the current baseline) rather than an open-ended "look for something better" task. MCP Sampling/Elicitation were confirmed deprecated as of the 2026-07-28 spec and are explicitly excluded from future consideration until/unless their replacement (MRTR-pattern) matures and proves relevant.
+
+---
+
 See also: [../RULES.md](../RULES.md), [../requirements/PRD.md](../requirements/PRD.md), [../architecture/system-overview.md](../architecture/system-overview.md), [implementation/phases.md](../implementation/phases.md) Phase 9.
