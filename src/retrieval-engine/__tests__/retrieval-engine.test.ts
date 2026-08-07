@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { StorageEngine } from "../../storage-engine/storage-engine.js";
 import { EmbeddingEngine } from "../../embedding-search-engine/embedding-engine.js";
 import { embedAndStore } from "../../embedding-search-engine/embedding-search-coordinator.js";
+import { ConflictVersioningEngine } from "../../conflict-versioning-engine/conflict-versioning-engine.js";
 import { RetrievalEngine } from "../retrieval-engine.js";
 
 describe("RetrievalEngine", () => {
@@ -118,6 +119,32 @@ describe("RetrievalEngine", () => {
       // candidate-pool internals.
       expect(results.results.length).toBeLessThanOrEqual(50);
       expect(results.results.length).toBeGreaterThan(0);
+    });
+
+    it("excludes an invalidated observation from results (Phase 9F)", async () => {
+      const entity = storage.createEntity({ name: "staging-db", entity_type: "credential" });
+      const obs = storage.createObservation({
+        entity_id: entity.id,
+        observation: "staging DB password rotated to use env var STAGING_DB_PASS",
+        source_trigger: "event",
+      });
+      await embedAndStore(storage, embedder, obs.id, obs.observation);
+
+      new ConflictVersioningEngine(storage).invalidate(obs.id);
+
+      const results = await retrieval.search({ query: "staging database credentials", limit: 10 });
+      expect(results.results).toHaveLength(0);
+    });
+  });
+
+  describe("getProjectContext excludes invalidated observations (Phase 9F)", () => {
+    it("reports has_memory: false when the only observation has been invalidated", () => {
+      const entity = storage.createEntity({ name: "staging-db", entity_type: "credential" });
+      const obs = storage.createObservation({ entity_id: entity.id, observation: "password rotated", source_trigger: "event" });
+      new ConflictVersioningEngine(storage).invalidate(obs.id);
+
+      const context = retrieval.getProjectContext();
+      expect(context.has_memory).toBe(false);
     });
   });
 });

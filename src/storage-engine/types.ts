@@ -37,6 +37,7 @@ export interface ObservationRecord {
   readonly version: number;
   readonly created_at: string;
   readonly updated_at: string;
+  readonly invalidated_at: string | null;
 }
 
 export interface CreateObservationInput {

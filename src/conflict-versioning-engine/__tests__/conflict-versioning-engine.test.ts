@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { StorageEngine } from "../../storage-engine/storage-engine.js";
 import { hasBackup } from "../../storage-engine/backup.js";
 import { ConflictVersioningEngine } from "../conflict-versioning-engine.js";
-import { ConflictNotFoundError } from "../errors.js";
+import { ConflictNotFoundError, ObservationNotFoundError } from "../errors.js";
 
 describe("ConflictVersioningEngine", () => {
   let dir: string;
@@ -164,6 +164,88 @@ describe("ConflictVersioningEngine", () => {
       engine.confirmUpdate(conflict?.conflict_id ?? "", "confirm");
 
       expect(() => engine.confirmUpdate(conflict?.conflict_id ?? "", "confirm")).toThrow(ConflictNotFoundError);
+    });
+  });
+
+  describe("invalidate (Phase 9F)", () => {
+    it("throws ObservationNotFoundError for an unknown observation_id", () => {
+      expect(() => engine.invalidate("does-not-exist")).toThrow(ObservationNotFoundError);
+    });
+
+    it("marks the observation invalidated and archives its value into version history", () => {
+      const entity = storage.createEntity({ name: "staging-db", entity_type: "credential" });
+      const obs = storage.createObservation({
+        entity_id: entity.id,
+        attribute: "password",
+        observation: "old-password-123",
+        source_trigger: "event",
+      });
+
+      const result = engine.invalidate(obs.id);
+      expect(result.invalidated).toBe(true);
+      expect(result.invalidated_at).toBeTruthy();
+
+      const invalidated = storage.getObservationById(obs.id);
+      expect(invalidated?.invalidated_at).toBeTruthy();
+      expect(invalidated?.observation).toBe("old-password-123");
+
+      const history = storage.getVersionHistory(obs.id);
+      expect(history).toHaveLength(1);
+      expect(history[0]?.value).toBe("old-password-123");
+    });
+
+    it("excludes an invalidated observation from findLatestObservation", () => {
+      const entity = storage.createEntity({ name: "staging-db", entity_type: "credential" });
+      const obs = storage.createObservation({
+        entity_id: entity.id,
+        attribute: "password",
+        observation: "old-password-123",
+        source_trigger: "event",
+      });
+      engine.invalidate(obs.id);
+
+      expect(storage.findLatestObservation(entity.id, "password")).toBeUndefined();
+    });
+
+    it("excludes an invalidated observation from getObservationsByEntity", () => {
+      const entity = storage.createEntity({ name: "staging-db", entity_type: "credential" });
+      const obs = storage.createObservation({
+        entity_id: entity.id,
+        attribute: "password",
+        observation: "old-password-123",
+        source_trigger: "event",
+      });
+      engine.invalidate(obs.id);
+
+      expect(storage.getObservationsByEntity(entity.id)).toHaveLength(0);
+    });
+
+    it("backs up memory.db before invalidating (Phase 9A)", () => {
+      const dbPath = join(dir, "memory.db");
+      const entity = storage.createEntity({ name: "staging-db", entity_type: "credential" });
+      const obs = storage.createObservation({
+        entity_id: entity.id,
+        attribute: "password",
+        observation: "old-password-123",
+        source_trigger: "event",
+      });
+
+      expect(hasBackup(dbPath)).toBe(false);
+      engine.invalidate(obs.id);
+      expect(hasBackup(dbPath)).toBe(true);
+    });
+
+    it("throws ObservationNotFoundError when invalidating an already-invalidated observation", () => {
+      const entity = storage.createEntity({ name: "staging-db", entity_type: "credential" });
+      const obs = storage.createObservation({
+        entity_id: entity.id,
+        attribute: "password",
+        observation: "old-password-123",
+        source_trigger: "event",
+      });
+      engine.invalidate(obs.id);
+
+      expect(() => engine.invalidate(obs.id)).toThrow(ObservationNotFoundError);
     });
   });
 });

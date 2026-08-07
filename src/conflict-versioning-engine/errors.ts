@@ -4,3 +4,10 @@ export class ConflictNotFoundError extends Error {
     this.name = "ConflictNotFoundError";
   }
 }
+
+export class ObservationNotFoundError extends Error {
+  constructor(observationId: string) {
+    super(`No observation found with id ${observationId}`);
+    this.name = "ObservationNotFoundError";
+  }
+}

@@ -132,7 +132,7 @@
 - [x] Finalize `package.json` `bin` entry, `files` allowlist, and postinstall model-bundling step.
 - [x] Test `npm pack` + local global install on a clean environment.
 - [x] Test `npx aimem` zero-install invocation.
-- [ ] Configure aimem as an MCP server in Claude Code and verify all 6 tools appear and function. **(Requires the project owner's own machine/IDE — cannot be completed autonomously.)**
+- [ ] Configure aimem as an MCP server in Claude Code and verify all 7 tools appear and function. **(Requires the project owner's own machine/IDE — cannot be completed autonomously.)**
 - [ ] Configure aimem as an MCP server in a second client (Cursor or Windsurf) and verify parity. **(Requires the project owner's own machine/IDE — cannot be completed autonomously.)**
 - [x] Write/finalize [knowledge/setup/install-guide.md](../knowledge/setup/install-guide.md) troubleshooting entries based on real install issues found.
 - [ ] Publish to npm registry (or dry-run publish if not yet public). **(Requires the project owner's own npm account/credentials, entered directly by them via `npm login` in their own terminal — never pasted into chat. Awaiting the owner's decision on whether/when to publish.)**
@@ -180,11 +180,12 @@ Also found and fixed: `scripts/bundle-embedding-model.mjs` was missing from `pac
 
 ### 9F — Explicit Stale-Fact Invalidation
 
-- [ ] Add a way to mark an existing observation as outdated *without* a replacement value — distinct from `memory_confirm_update`'s replace-with-new-value flow, since some facts just stop being true with nothing to swap in (e.g. "we no longer use Redis," with no successor fact).
-- [ ] Design as a small extension of the existing conflict/versioning engine and schema (`observation_versions` already tracks superseded values) rather than a new subsystem — an invalidated observation is versioned like any update, just with no new live value.
-- [ ] Decide the tool-surface shape: likely folds into `memory_confirm_update` (a third `action` value, e.g. `"invalidate"`) rather than a brand-new tool, to keep the tool count at 6.
-- [ ] `memory_search`/`memory_get_project_context` must exclude invalidated observations from normal results while keeping them queryable via version history.
-- [ ] Write tests: invalidate an observation, confirm it's excluded from search, confirm it's still visible in version history.
+- [x] Added a way to mark an existing observation as outdated *without* a replacement value — distinct from `memory_confirm_update`'s replace-with-new-value flow, since some facts just stop being true with nothing to swap in (e.g. "we no longer use Redis," with no successor fact).
+- [x] Implemented as a small extension of the existing conflict/versioning engine and schema: new migration `005-observation-invalidation.sql` adds `observations.invalidated_at` (nullable), and `ConflictVersioningEngine.invalidate()` archives the current value into `observation_versions` (reusing the existing history mechanism) before flagging the row — an invalidated observation is versioned like any update, just with no new live value.
+- [x] Tool-surface shape deviated from the plan's original guess: rather than folding into `memory_confirm_update` (which is keyed on `conflict_id`, not `observation_id` — mixing the two into one schema would have been confusing), added a small dedicated `memory_invalidate` tool (`observation_id` in, `{ invalidated: true, invalidated_at }` out), matching the project's existing one-tool-per-action pattern (`memory_store`/`memory_scan`/`memory_remember` are already split this way). Tool count is now 7, not 6.
+- [x] `memory_search` (via `RetrievalEngine.search`) and `memory_get_project_context` (via `getLastUpdatedAt`/`getTopEntitiesByRecentActivity`) now exclude invalidated observations from normal results; `getVersionHistory` remains unfiltered so invalidated facts stay queryable via version history.
+- [x] `ALTER TABLE ADD COLUMN` has no `IF NOT EXISTS` guard in SQLite, and migrations re-run on every startup — an unconditional `ALTER TABLE` would throw "duplicate column name" on the second startup. Gated in JS via `StorageEngine.addInvalidatedAtColumnIfNeeded()` (checks `PRAGMA table_info` first), the same pattern already used for the Phase 9E FTS5 backfill gate.
+- [x] Wrote tests: storage-level (`invalidateObservation`, exclusion from `getObservationsByEntity`/`findLatestObservation`, safe reopen with the column already present), engine-level (`ConflictVersioningEngine.invalidate`, backup-before-write, double-invalidate throws `ObservationNotFoundError`), retrieval-level (excluded from `memory_search` and `memory_get_project_context`), and a full e2e round trip via the real `memory_invalidate` tool. 97 fast tests + 10 e2e tests passing.
 
 ### 9C — Test Coverage Depth
 

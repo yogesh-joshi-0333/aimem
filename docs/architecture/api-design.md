@@ -121,6 +121,18 @@ Resolves a detected conflict by confirming or rejecting the proposed update.
 | Success response (reject) | `{ "success": true, "data": { "updated": false } }` |
 | Error cases | `CONFLICT_NOT_FOUND`, `INVALID_INPUT`, `STORAGE_CORRUPTED` |
 
+### `memory_invalidate` (Phase 9F)
+
+Marks a stored fact as no longer true or relevant, with no replacement value.
+
+| Field | Value |
+|---|---|
+| Description | "Marks a stored fact as no longer true or no longer relevant, WITHOUT providing a replacement value (use memory_store or memory_confirm_update instead when you have a new value). Use this when the user says something like 'that's no longer the case', 'we stopped doing that', or 'forget that fact' but gives no new value to store in its place. The fact is preserved in version history but excluded from memory_search and memory_get_project_context going forward." |
+| Input schema | `{ "observation_id": "string (required)" }` |
+| Example input | `{ "observation_id": "f7e2..." }` |
+| Success response | `{ "success": true, "data": { "invalidated": true, "invalidated_at": "2026-08-07T11:00:00.000Z" } }` |
+| Error cases | `OBSERVATION_NOT_FOUND`, `INVALID_INPUT`, `STORAGE_CORRUPTED` |
+
 ## Standard Error Codes
 
 | Code | Meaning | HTTP-analog (for reference only, not used) |
@@ -128,6 +140,7 @@ Resolves a detected conflict by confirming or rejecting the proposed update.
 | `INVALID_INPUT` | Request input failed JSON schema validation | 400 |
 | `STORAGE_CORRUPTED` | `.aimem/memory.db` exists but is unreadable/malformed | 500 |
 | `CONFLICT_NOT_FOUND` | `memory_confirm_update` referenced an unknown `conflict_id` | 404 |
+| `OBSERVATION_NOT_FOUND` | `memory_invalidate` referenced an unknown or already-invalidated `observation_id` | 404 |
 | `INTERNAL_ERROR` | Unclassified internal failure, caught at tool-handler boundary | 500 |
 
 Exact message strings for each code are defined in [knowledge/error-handling.md](../knowledge/error-handling.md) — this file defines the codes and when they apply; that file defines the literal text.

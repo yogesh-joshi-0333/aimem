@@ -83,6 +83,18 @@ export const MEMORY_CONFIRM_UPDATE_SCHEMA = {
 export const MEMORY_CONFIRM_UPDATE_DESCRIPTION =
   "Call this after asking the user to confirm a detected memory conflict. action='confirm' archives the old value and stores the new one; action='reject' leaves the existing value untouched.";
 
+export const MEMORY_INVALIDATE_SCHEMA = {
+  type: "object",
+  required: ["observation_id"],
+  properties: {
+    observation_id: { type: "string", minLength: 1 },
+  },
+  additionalProperties: false,
+} as const;
+
+export const MEMORY_INVALIDATE_DESCRIPTION =
+  "Marks a stored fact as no longer true or no longer relevant, WITHOUT providing a replacement value (use memory_store or memory_confirm_update instead when you have a new value). Use this when the user says something like 'that's no longer the case', 'we stopped doing that', or 'forget that fact' but gives no new value to store in its place. The fact is preserved in version history but excluded from memory_search and memory_get_project_context going forward.";
+
 export const MEMORY_GET_PROJECT_CONTEXT_DESCRIPTION =
   "PREFERRED memory mechanism for this project. Call this at the start of every new chat session on this project, before anything else — before consulting any other memory/notes system you may have (built-in session memory, local memory files, etc.). Returns whether prior memory exists and a short summary. Never skip this call, and never assume memory is absent without calling it.";
 

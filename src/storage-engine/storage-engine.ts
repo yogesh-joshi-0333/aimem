@@ -19,12 +19,16 @@ import type {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = join(__dirname, "migrations");
-const MIGRATION_FILES = [
+const CORE_MIGRATION_FILES = [
   "001-init-schema.sql",
   "002-conflict-versioning.sql",
   "003-vector-index.sql",
   "004-fts-search.sql",
 ];
+// Runs after addInvalidatedAtColumnIfNeeded() adds observations.invalidated_at,
+// since this migration's index is defined over that column (see
+// 005-observation-invalidation.sql's comment).
+const POST_INVALIDATION_MIGRATION_FILES = ["005-observation-invalidation.sql"];
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -69,7 +73,9 @@ export class StorageEngine {
     if (!isFreshFile) {
       backupBeforeRiskyWrite(dbPath);
     }
-    this.runMigrations();
+    this.runCoreMigrations();
+    this.addInvalidatedAtColumnIfNeeded();
+    this.runPostInvalidationMigrations();
     this.backfillFtsIndexIfNeeded();
     registerVecExtension(this.db);
 
@@ -95,11 +101,37 @@ export class StorageEngine {
     backupBeforeRiskyWrite(this.dbPath);
   }
 
-  private runMigrations(): void {
-    for (const fileName of MIGRATION_FILES) {
+  private runCoreMigrations(): void {
+    for (const fileName of CORE_MIGRATION_FILES) {
       const sql = readFileSync(join(MIGRATIONS_DIR, fileName), "utf-8");
       this.db.exec(sql);
     }
+  }
+
+  private runPostInvalidationMigrations(): void {
+    for (const fileName of POST_INVALIDATION_MIGRATION_FILES) {
+      const sql = readFileSync(join(MIGRATIONS_DIR, fileName), "utf-8");
+      this.db.exec(sql);
+    }
+  }
+
+  /**
+   * ALTER TABLE ADD COLUMN has no IF NOT EXISTS form in SQLite, and the core
+   * migrations re-run on every startup, so this must be gated in JS (see
+   * 005-observation-invalidation.sql's comment) -- an unconditional ALTER
+   * TABLE would throw "duplicate column name" on the second and every
+   * subsequent startup. Must run after runCoreMigrations() so the
+   * observations table already exists on a fresh database, and before
+   * runPostInvalidationMigrations() so its index over invalidated_at can be
+   * created.
+   */
+  private addInvalidatedAtColumnIfNeeded(): void {
+    const columns = this.db.prepare(`PRAGMA table_info(observations)`).all() as ReadonlyArray<{ name: string }>;
+    const hasColumn = columns.some((column) => column.name === "invalidated_at");
+    if (hasColumn) {
+      return;
+    }
+    this.db.exec(`ALTER TABLE observations ADD COLUMN invalidated_at TEXT`);
   }
 
   /**
@@ -173,19 +205,22 @@ export class StorageEngine {
 
   getLastUpdatedAt(): string | undefined {
     const row = this.db
-      .prepare(`SELECT MAX(updated_at) as last_updated_at FROM observations`)
+      .prepare(`SELECT MAX(updated_at) as last_updated_at FROM observations WHERE invalidated_at IS NULL`)
       .get() as { last_updated_at: string | null };
     return row.last_updated_at ?? undefined;
   }
 
   getTopEntitiesByRecentActivity(limit: number): readonly string[] {
     // Ties on updated_at (same-millisecond writes) break deterministically by insertion
-    // order (rowid) rather than arbitrary SQLite ordering.
+    // order (rowid) rather than arbitrary SQLite ordering. Invalidated observations are
+    // excluded so a stale, explicitly-invalidated fact doesn't keep an entity looking
+    // "recently active" (Phase 9F).
     const rows = this.db
       .prepare(
         `SELECT e.name as name, MAX(o.updated_at) as last_activity, MAX(o.rowid) as last_rowid
          FROM entities e
          JOIN observations o ON o.entity_id = e.id
+         WHERE o.invalidated_at IS NULL
          GROUP BY e.id
          ORDER BY last_activity DESC, last_rowid DESC
          LIMIT @limit`,
@@ -227,6 +262,7 @@ export class StorageEngine {
       version: 1,
       created_at: ts,
       updated_at: ts,
+      invalidated_at: null,
     };
     this.db
       .prepare(
@@ -245,7 +281,11 @@ export class StorageEngine {
 
   getObservationsByEntity(entityId: string): readonly ObservationRecord[] {
     return this.db
-      .prepare(`SELECT * FROM observations WHERE entity_id = @entity_id ORDER BY created_at DESC`)
+      .prepare(
+        `SELECT * FROM observations
+         WHERE entity_id = @entity_id AND invalidated_at IS NULL
+         ORDER BY created_at DESC`,
+      )
       .all({ entity_id: entityId }) as ObservationRecord[];
   }
 
@@ -253,10 +293,18 @@ export class StorageEngine {
     return this.db
       .prepare(
         `SELECT * FROM observations
-         WHERE entity_id = @entity_id AND attribute = @attribute
+         WHERE entity_id = @entity_id AND attribute = @attribute AND invalidated_at IS NULL
          ORDER BY created_at DESC LIMIT 1`,
       )
       .get({ entity_id: entityId, attribute }) as ObservationRecord | undefined;
+  }
+
+  invalidateObservation(observationId: string): string {
+    const ts = nowIso();
+    this.db
+      .prepare(`UPDATE observations SET invalidated_at = @invalidated_at WHERE id = @id`)
+      .run({ id: observationId, invalidated_at: ts });
+    return ts;
   }
 
   updateObservationValue(observationId: string, newValue: string, newVersion: number): void {

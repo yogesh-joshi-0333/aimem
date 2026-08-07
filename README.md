@@ -66,6 +66,7 @@ See [docs/architecture/system-overview.md](docs/architecture/system-overview.md)
 | `memory_scan` | Batch capture for periodic and context-threshold safety-net passes |
 | `memory_remember` | Manual override — stores unconditionally when the user explicitly says "remember this" |
 | `memory_confirm_update` | Resolves a detected conflict between new and existing memory, with full version history |
+| `memory_invalidate` | Marks a stored fact as no longer true, with no replacement value — preserved in version history but excluded from search/context |
 
 Full request/response schemas: [docs/architecture/api-design.md](docs/architecture/api-design.md).
 

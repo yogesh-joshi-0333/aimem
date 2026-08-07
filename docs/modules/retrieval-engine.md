@@ -67,6 +67,7 @@ src/embedding-search-engine/
 
 - On a corrupted database, both tools return `STORAGE_CORRUPTED` per [error-handling.md](../knowledge/error-handling.md) — retrieval must fail loudly rather than silently reporting "no memory" when memory actually exists but is unreadable.
 - On a missing database (fresh project), `memory_get_project_context` returns `{ has_memory: false }` with no error, consistent with the fresh-start rule.
+- Both tools exclude observations invalidated via `memory_invalidate` (Phase 9F, owned by [conflict-versioning-engine.md](conflict-versioning-engine.md)) — an invalidated observation is not an error case, it's simply excluded from ranking/aggregates the same way a filtered-out `entity_type` is.
 
 ## Configuration Options
 

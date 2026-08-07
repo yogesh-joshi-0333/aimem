@@ -39,7 +39,7 @@ export class RetrievalEngine {
     const results = similar
       .map((match) => {
         const observation = this.storage.getObservationById(match.observation_id);
-        if (observation === undefined) {
+        if (observation === undefined || observation.invalidated_at !== null) {
           return undefined;
         }
         const entity = this.storage.getEntityById(observation.entity_id);

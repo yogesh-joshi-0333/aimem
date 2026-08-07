@@ -21,6 +21,8 @@ import {
   MEMORY_CONFIRM_UPDATE_SCHEMA,
   MEMORY_GET_PROJECT_CONTEXT_DESCRIPTION,
   MEMORY_GET_PROJECT_CONTEXT_SCHEMA,
+  MEMORY_INVALIDATE_DESCRIPTION,
+  MEMORY_INVALIDATE_SCHEMA,
   MEMORY_REMEMBER_DESCRIPTION,
   MEMORY_REMEMBER_SCHEMA,
   MEMORY_SCAN_DESCRIPTION,
@@ -142,6 +144,14 @@ export function createToolRouter(deps: LazyServerDependencies): ToolRouter {
     async (input) => {
       const { conflict_id, action } = input as { conflict_id: string; action: ConfirmAction };
       return deps.get().conflicts.confirmUpdate(conflict_id, action);
+    },
+  );
+
+  router.registerTool(
+    { name: "memory_invalidate", description: MEMORY_INVALIDATE_DESCRIPTION, inputSchema: MEMORY_INVALIDATE_SCHEMA },
+    async (input) => {
+      const { observation_id } = input as { observation_id: string };
+      return deps.get().conflicts.invalidate(observation_id);
     },
   );
 

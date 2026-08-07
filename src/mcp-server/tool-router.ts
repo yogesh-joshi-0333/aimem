@@ -3,7 +3,7 @@ import type { ValidateFunction } from "ajv";
 import { logger } from "../logger.js";
 import { StorageCorruptedError } from "../storage-engine/errors.js";
 import { InvalidInputError } from "../capture-engine/errors.js";
-import { ConflictNotFoundError } from "../conflict-versioning-engine/errors.js";
+import { ConflictNotFoundError, ObservationNotFoundError } from "../conflict-versioning-engine/errors.js";
 import { EmbeddingModelUnavailableError } from "../embedding-search-engine/errors.js";
 
 export interface ToolSuccessResponse {
@@ -54,6 +54,14 @@ const CONFLICT_NOT_FOUND_ERROR: ToolErrorResponse = {
   },
 };
 
+const OBSERVATION_NOT_FOUND_ERROR: ToolErrorResponse = {
+  success: false,
+  error: {
+    code: "OBSERVATION_NOT_FOUND",
+    message: "No observation was found with the given observation_id, or it has already been invalidated.",
+  },
+};
+
 const INTERNAL_ERROR: ToolErrorResponse = {
   success: false,
   error: {
@@ -101,6 +109,9 @@ export class ToolRouter {
       }
       if (err instanceof ConflictNotFoundError) {
         return CONFLICT_NOT_FOUND_ERROR;
+      }
+      if (err instanceof ObservationNotFoundError) {
+        return OBSERVATION_NOT_FOUND_ERROR;
       }
       // EmbeddingModelUnavailableError and any other unclassified error both map to the
       // same fixed INTERNAL_ERROR text — explicit branch kept separate from the generic

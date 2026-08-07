@@ -30,6 +30,7 @@ No field beyond `success`, `error.code`, and `error.message` is present in an er
 | Tool input fails schema validation | Yes | `INVALID_INPUT` | `The input provided to this tool is invalid or incomplete. Please check the required fields and try again.` |
 | Conflict confirmation references unknown `conflict_id` | Yes | `CONFLICT_NOT_FOUND` | `No pending memory conflict was found with the given conflict_id. It may have already been resolved.` |
 | Conflict detected on write | Yes (structured, not a failure) | N/A (`conflict_detected: true` in success data) | N/A — see [architecture/api-design.md](../architecture/api-design.md) `memory_store` conflict response |
+| `memory_invalidate` references unknown or already-invalidated `observation_id` (Phase 9F) | Yes | `OBSERVATION_NOT_FOUND` | `No observation was found with the given observation_id, or it has already been invalidated.` |
 | Unclassified internal failure | Yes | `INTERNAL_ERROR` | `An unexpected internal error occurred in aimem. Your existing memory data has not been modified.` |
 
 ## Error Handling Layers

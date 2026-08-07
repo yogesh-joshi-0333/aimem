@@ -29,7 +29,9 @@ src/storage-engine/
 │   ├── 001-init-schema.sql      # entities, relations, observations
 │   ├── 002-conflict-versioning.sql  # observation_versions, conflicts
 │   ├── 003-vector-index.sql     # observation_embeddings mapping table
-│   └── 004-fts-search.sql       # observations_fts (Phase 9E, external-content FTS5 + sync triggers)
+│   ├── 004-fts-search.sql       # observations_fts (Phase 9E, external-content FTS5 + sync triggers)
+│   └── 005-observation-invalidation.sql  # idx_observations_invalidated_at (Phase 9F; the column itself
+│                                          #   is added in JS, see addInvalidatedAtColumnIfNeeded below)
 └── __tests__/
     ├── storage-engine.test.ts
     ├── concurrency.test.ts
@@ -43,7 +45,7 @@ src/storage-engine/
 |---|---|
 | `entities` | `id` (uuid), `name`, `entity_type`, `created_at`, `updated_at` |
 | `relations` | `id`, `from_entity_id`, `to_entity_id`, `relation_type`, `created_at` |
-| `observations` | `id`, `entity_id`, `attribute`, `observation`, `confidence`, `source_trigger`, `version`, `created_at`, `updated_at` |
+| `observations` | `id`, `entity_id`, `attribute`, `observation`, `confidence`, `source_trigger`, `version`, `created_at`, `updated_at`, `invalidated_at` (nullable, Phase 9F — see below) |
 | `observation_versions` | `id`, `observation_id`, `version`, `value`, `superseded_at`, `superseded_by_version` |
 | `conflicts` | `id`, `observation_id`, `existing_value`, `new_value`, `status`, `created_at`, `resolved_at` |
 | `observation_embeddings` | `observation_id` (TEXT, PK), `vec_rowid` (INTEGER, UNIQUE), `created_at` — maps a UUID `observations.id` to the integer `rowid` required by `vec_observations`, since `sqlite-vec`'s `vec0` virtual table requires an integer rowid and observation IDs are UUID strings. Added during Phase 3 (migration `003-vector-index.sql`), not foreseen when this doc was first written. |
@@ -61,6 +63,7 @@ Indexes: `entities.entity_type`, `observations.entity_id`, `observations.attribu
 | `createRelation(input)` / `getRelationsByEntity(entityId)` | Relation CRUD |
 | `findConflict(entityId, attribute, newValue)` | Compares new value against latest stored value |
 | `archiveVersion(observationId, oldValue)` | Writes to `observation_versions`, increments `version` |
+| `invalidateObservation(observationId)` | (Phase 9F) Sets `invalidated_at`; returns the timestamp written |
 | `close()` | Clean WAL checkpoint + connection close |
 
 ## Lifecycle
@@ -77,6 +80,10 @@ Indexes: `entities.entity_type`, `observations.entity_id`, `observations.attribu
 ## Known Timing Edge Case (found and fixed during Phase 6)
 
 `getTopEntitiesByRecentActivity` ranks entities by `MAX(observations.updated_at)`, an ISO-8601 string with millisecond resolution. Two writes issued synchronously in the same millisecond (common in tests, and possible in a fast automated `memory_scan` batch) can tie on `updated_at`, making the ranking non-deterministic without a tiebreaker. Fixed by adding `MAX(observations.rowid)` as a secondary `ORDER BY` key — SQLite's implicit rowid increments strictly with insertion order, giving a deterministic "most recent" ranking even under same-millisecond ties.
+
+## Adding a Column to an Existing Table (Phase 9F)
+
+`observations.invalidated_at` was added via `ALTER TABLE`, not a `CREATE TABLE IF NOT EXISTS` migration file — SQLite's `ALTER TABLE ADD COLUMN` has no `IF NOT EXISTS` form, but every migration file re-execs on every startup (see the FTS5 backfill note in [decisions/ADR.md](../decisions/ADR.md) ADR-019 for the same class of problem). An unconditional `ALTER TABLE` would throw `"duplicate column name"` on the second and every subsequent startup. `addInvalidatedAtColumnIfNeeded()` checks `PRAGMA table_info(observations)` first and only runs the `ALTER TABLE` once, on the first startup after upgrading. It runs after the core migrations (so `observations` already exists on a fresh database) and before `005-observation-invalidation.sql` (whose index is defined over the new column).
 
 ## Module-Specific Error Handling
 

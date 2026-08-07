@@ -5,7 +5,7 @@
 
 ## Role
 
-The Conflict & Versioning Engine protects the integrity of stored memory by detecting when an incoming observation contradicts an existing value for the same entity/attribute, halting the write and returning a structured conflict for user confirmation via `memory_confirm_update`, and — only upon explicit confirmation — archiving the superseded value into a version history table rather than deleting it, so the project's decision history ("remember WHY, not just WHAT") is preserved rather than silently lost.
+The Conflict & Versioning Engine protects the integrity of stored memory by detecting when an incoming observation contradicts an existing value for the same entity/attribute, halting the write and returning a structured conflict for user confirmation via `memory_confirm_update`, and — only upon explicit confirmation — archiving the superseded value into a version history table rather than deleting it, so the project's decision history ("remember WHY, not just WHAT") is preserved rather than silently lost. It also owns explicit stale-fact invalidation (`memory_invalidate`, Phase 9F) for facts that simply stop being true with no replacement value to swap in.
 
 ## Technology
 
@@ -19,8 +19,9 @@ The Conflict & Versioning Engine protects the integrity of stored memory by dete
 
 ```
 src/conflict-versioning-engine/
-├── conflict-versioning-engine.ts   # detectConflict(), confirmUpdate()
-├── types.ts                        # Conflict, VersionRecord
+├── conflict-versioning-engine.ts   # detectConflict(), confirmUpdate(), invalidate() (Phase 9F)
+├── types.ts                        # Conflict, VersionRecord, InvalidateResult
+├── errors.ts                       # ConflictNotFoundError, ObservationNotFoundError (Phase 9F)
 └── __tests__/
     └── conflict-versioning-engine.test.ts
 ```
@@ -32,6 +33,7 @@ src/conflict-versioning-engine/
 | `detectConflict(entityId, attribute, newValue)` | Compares against the latest stored value; returns a `Conflict` record or `null` |
 | `memory_confirm_update(input)` | Resolves a pending conflict by `conflict_id`: `confirm` archives + updates, `reject` leaves untouched |
 | `archiveAndUpdate(observationId, oldValue, newValue)` | Writes the old value to `observation_versions`, increments `version`, updates the live row |
+| `memory_invalidate(input)` | Marks an observation stale by `observation_id`, with no replacement value (Phase 9F); archives the current value into `observation_versions` and sets `observations.invalidated_at` |
 
 ## Lifecycle
 
@@ -42,13 +44,15 @@ src/conflict-versioning-engine/
 ## Dependencies on Other Modules
 
 - [storage-engine.md](storage-engine.md) — all conflict/version persistence.
-- Consumed by [capture-engine.md](capture-engine.md) (pre-write check) and the MCP Server module (routes `memory_confirm_update` calls here).
+- Consumed by [capture-engine.md](capture-engine.md) (pre-write check) and the MCP Server module (routes `memory_confirm_update` and `memory_invalidate` calls here).
+- [retrieval-engine.md](retrieval-engine.md) — `memory_search`/`memory_get_project_context` exclude any observation this module has invalidated.
 
 ## Module-Specific Error Handling
 
 - `memory_confirm_update` with an unknown `conflict_id` returns `CONFLICT_NOT_FOUND` (see [error-handling.md](../knowledge/error-handling.md)) — never silently no-ops.
 - A `reject` action is a valid, successful outcome (`updated: false`), not an error.
 - Archive-then-update on confirm happens inside a single transaction — a crash mid-operation must never leave the version history and the live value inconsistent.
+- `memory_invalidate` with an unknown or already-invalidated `observation_id` returns `OBSERVATION_NOT_FOUND` (Phase 9F) — invalidating twice is rejected rather than silently no-oping, matching the same never-silently-no-op principle as conflict resolution.
 
 ## Configuration Options
 

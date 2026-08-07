@@ -105,6 +105,48 @@ describe("StorageEngine", () => {
       expect(updated?.observation).toBe("PostgreSQL");
       expect(updated?.version).toBe(2);
     });
+
+    it("creates a new observation with invalidated_at unset (Phase 9F)", () => {
+      const entity = engine.createEntity({ name: "primary-db", entity_type: "architecture_fact" });
+      const obs = engine.createObservation({
+        entity_id: entity.id,
+        attribute: "engine",
+        observation: "PostgreSQL",
+        source_trigger: "event",
+      });
+      expect(obs.invalidated_at).toBeNull();
+      expect(engine.getObservationById(obs.id)?.invalidated_at).toBeNull();
+    });
+
+    it("invalidateObservation sets invalidated_at and returns the timestamp (Phase 9F)", () => {
+      const entity = engine.createEntity({ name: "primary-db", entity_type: "architecture_fact" });
+      const obs = engine.createObservation({
+        entity_id: entity.id,
+        attribute: "engine",
+        observation: "MySQL",
+        source_trigger: "event",
+      });
+
+      const returned = engine.invalidateObservation(obs.id);
+      const stored = engine.getObservationById(obs.id);
+      expect(stored?.invalidated_at).toBe(returned);
+      expect(stored?.observation).toBe("MySQL");
+    });
+
+    it("excludes invalidated observations from getObservationsByEntity and findLatestObservation (Phase 9F)", () => {
+      const entity = engine.createEntity({ name: "primary-db", entity_type: "architecture_fact" });
+      const obs = engine.createObservation({
+        entity_id: entity.id,
+        attribute: "engine",
+        observation: "MySQL",
+        source_trigger: "event",
+      });
+      engine.invalidateObservation(obs.id);
+
+      expect(engine.getObservationsByEntity(entity.id)).toHaveLength(0);
+      expect(engine.findLatestObservation(entity.id, "engine")).toBeUndefined();
+      expect(engine.getObservationById(obs.id)).toBeDefined();
+    });
   });
 
   describe("relations", () => {
@@ -191,6 +233,17 @@ describe("StorageEngine", () => {
       expect(hasBackup(dbPath)).toBe(false);
       engine.backupNow();
       expect(hasBackup(dbPath)).toBe(true);
+    });
+  });
+
+  describe("invalidated_at column migration (Phase 9F)", () => {
+    it("does not throw 'duplicate column name' when reopening a db that already has the column", () => {
+      // `engine` from beforeEach already ran addInvalidatedAtColumnIfNeeded() once
+      // on this file. Reopening must be a no-op, not a second unguarded ALTER TABLE.
+      engine.close();
+      expect(() => {
+        engine = new StorageEngine(dbPath);
+      }).not.toThrow();
     });
   });
 });

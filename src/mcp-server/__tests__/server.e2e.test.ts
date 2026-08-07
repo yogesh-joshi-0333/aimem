@@ -55,6 +55,7 @@ describe("aimem MCP server (e2e, stdio)", () => {
     expect(toolNames).toEqual([
       "memory_confirm_update",
       "memory_get_project_context",
+      "memory_invalidate",
       "memory_remember",
       "memory_scan",
       "memory_search",
@@ -225,6 +226,38 @@ describe("aimem MCP server (e2e, stdio)", () => {
     expect(unknownConflictResponse.error?.code).toBe("CONFLICT_NOT_FOUND");
   });
 
+  it("memory_invalidate marks a fact stale and it disappears from search/context (Phase 9F)", async () => {
+    await client.connect(transport);
+
+    const storeResponse = parseToolResponse(
+      await client.callTool({
+        name: "memory_store",
+        arguments: {
+          entity: "staging-db",
+          entity_type: "credential",
+          observation: "staging DB password rotated to use env var STAGING_DB_PASS",
+          source_trigger: "event",
+        },
+      }),
+    );
+    const observationId = storeResponse.data?.id as string;
+
+    const invalidateResponse = parseToolResponse(
+      await client.callTool({ name: "memory_invalidate", arguments: { observation_id: observationId } }),
+    );
+    expect(invalidateResponse.success).toBe(true);
+    expect(invalidateResponse.data?.invalidated).toBe(true);
+
+    const context = parseToolResponse(await client.callTool({ name: "memory_get_project_context", arguments: {} }));
+    expect(context.data?.has_memory).toBe(false);
+
+    const unknownObservationResponse = parseToolResponse(
+      await client.callTool({ name: "memory_invalidate", arguments: { observation_id: "not-a-real-observation-id" } }),
+    );
+    expect(unknownObservationResponse.success).toBe(false);
+    expect(unknownObservationResponse.error?.code).toBe("OBSERVATION_NOT_FOUND");
+  });
+
   it("concurrency (FR-ERR-05): two full server processes writing to the same project simultaneously do not corrupt data", async () => {
     await client.connect(transport);
     const second = connectClient(projectDir);
@@ -290,7 +323,7 @@ describe("aimem MCP server (e2e, stdio)", () => {
       try {
         await symlinkClient.connect(symlinkTransport);
         const tools = await symlinkClient.listTools();
-        expect(tools.tools.length).toBe(6);
+        expect(tools.tools.length).toBe(7);
       } finally {
         await symlinkClient.close();
         rmSync(symlinkDir, { recursive: true, force: true });

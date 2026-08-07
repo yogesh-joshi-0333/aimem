@@ -11,3 +11,8 @@ export interface ConfirmUpdateResult {
   readonly updated: boolean;
   readonly new_version?: number;
 }
+
+export interface InvalidateResult {
+  readonly invalidated: true;
+  readonly invalidated_at: string;
+}
