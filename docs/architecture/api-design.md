@@ -45,6 +45,10 @@ Error:
 
 Exact error codes/messages: [knowledge/error-handling.md](../knowledge/error-handling.md).
 
+## Input Size Ceilings (Phase 9, pre-publish hardening)
+
+Every free-text field across all tools is capped: entity/entity_type/attribute/conflict_id/observation_id names at `MAX_NAME_LENGTH` (256 chars), observation/query text at `MAX_OBSERVATION_LENGTH` (8000 chars), and `memory_scan`'s `candidates` array at `MAX_SCAN_CANDIDATES` (100 items) — see [config.ts](../../src/config.ts). Exceeding any of these returns `INVALID_INPUT`, the same as any other schema validation failure. These exist to keep a single tool call bounded in cost (an unbounded `candidates` array combined with `memory_scan`'s per-candidate O(n·m) dedup comparison against existing observations was a real DoS-shaped gap before this pass, not a hypothetical one), not to be a "correct" universal limit — generous enough that no legitimate use case should hit them.
+
 ## Tools
 
 ### `memory_get_project_context`

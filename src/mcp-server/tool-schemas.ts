@@ -1,11 +1,13 @@
+import { MAX_NAME_LENGTH, MAX_OBSERVATION_LENGTH, MAX_SCAN_CANDIDATES } from "../config.js";
+
 export const MEMORY_STORE_SCHEMA = {
   type: "object",
   required: ["entity", "entity_type", "observation", "source_trigger"],
   properties: {
-    entity: { type: "string", minLength: 1 },
-    entity_type: { type: "string", minLength: 1 },
-    observation: { type: "string", minLength: 1 },
-    attribute: { type: "string" },
+    entity: { type: "string", minLength: 1, maxLength: MAX_NAME_LENGTH },
+    entity_type: { type: "string", minLength: 1, maxLength: MAX_NAME_LENGTH },
+    observation: { type: "string", minLength: 1, maxLength: MAX_OBSERVATION_LENGTH },
+    attribute: { type: "string", maxLength: MAX_NAME_LENGTH },
     source_trigger: { enum: ["event", "turn_scan", "context_threshold_scan", "manual"] },
   },
   additionalProperties: false,
@@ -19,14 +21,15 @@ export const MEMORY_SCAN_SCHEMA = {
     candidates: {
       type: "array",
       minItems: 1,
+      maxItems: MAX_SCAN_CANDIDATES,
       items: {
         type: "object",
         required: ["entity", "entity_type", "observation"],
         properties: {
-          entity: { type: "string", minLength: 1 },
-          entity_type: { type: "string", minLength: 1 },
-          observation: { type: "string", minLength: 1 },
-          attribute: { type: "string" },
+          entity: { type: "string", minLength: 1, maxLength: MAX_NAME_LENGTH },
+          entity_type: { type: "string", minLength: 1, maxLength: MAX_NAME_LENGTH },
+          observation: { type: "string", minLength: 1, maxLength: MAX_OBSERVATION_LENGTH },
+          attribute: { type: "string", maxLength: MAX_NAME_LENGTH },
         },
         additionalProperties: false,
       },
@@ -51,8 +54,8 @@ export const MEMORY_SEARCH_SCHEMA = {
   type: "object",
   required: ["query"],
   properties: {
-    query: { type: "string", minLength: 1 },
-    entity_type: { type: "string" },
+    query: { type: "string", minLength: 1, maxLength: MAX_OBSERVATION_LENGTH },
+    entity_type: { type: "string", maxLength: MAX_NAME_LENGTH },
     limit: { type: "integer", minimum: 1, maximum: 50 },
   },
   additionalProperties: false,
@@ -62,10 +65,10 @@ export const MEMORY_REMEMBER_SCHEMA = {
   type: "object",
   required: ["entity", "entity_type", "observation"],
   properties: {
-    entity: { type: "string", minLength: 1 },
-    entity_type: { type: "string", minLength: 1 },
-    observation: { type: "string", minLength: 1 },
-    attribute: { type: "string" },
+    entity: { type: "string", minLength: 1, maxLength: MAX_NAME_LENGTH },
+    entity_type: { type: "string", minLength: 1, maxLength: MAX_NAME_LENGTH },
+    observation: { type: "string", minLength: 1, maxLength: MAX_OBSERVATION_LENGTH },
+    attribute: { type: "string", maxLength: MAX_NAME_LENGTH },
   },
   additionalProperties: false,
 } as const;
@@ -74,7 +77,7 @@ export const MEMORY_CONFIRM_UPDATE_SCHEMA = {
   type: "object",
   required: ["conflict_id", "action"],
   properties: {
-    conflict_id: { type: "string", minLength: 1 },
+    conflict_id: { type: "string", minLength: 1, maxLength: MAX_NAME_LENGTH },
     action: { enum: ["confirm", "reject"] },
   },
   additionalProperties: false,
@@ -87,7 +90,7 @@ export const MEMORY_INVALIDATE_SCHEMA = {
   type: "object",
   required: ["observation_id"],
   properties: {
-    observation_id: { type: "string", minLength: 1 },
+    observation_id: { type: "string", minLength: 1, maxLength: MAX_NAME_LENGTH },
   },
   additionalProperties: false,
 } as const;

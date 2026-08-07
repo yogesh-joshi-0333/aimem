@@ -53,20 +53,36 @@ export function upsertEmbedding(db: Database.Database, observationId: string, em
   ).run(observationId, vecRowid, nowIso());
 }
 
+// sqlite-vec's `k = ?` constraint selects the k nearest rows from vec_observations BEFORE
+// any JOIN/WHERE against `observations` is applied (verified empirically -- a JOIN that
+// filters out invalidated rows post-KNN can return fewer than k results even when enough
+// live candidates exist further down the distance ranking). To guarantee `limit` live
+// candidates when possible, over-fetch a wider KNN window and filter+truncate in JS.
+const KNN_OVERFETCH_MULTIPLIER = 4;
+
 export function searchSimilar(
   db: Database.Database,
   queryEmbedding: Float32Array,
   limit: number,
 ): readonly SimilaritySearchResult[] {
   const buffer = toBuffer(queryEmbedding);
+  const overfetchLimit = limit * KNN_OVERFETCH_MULTIPLIER;
   const rows = db
     .prepare(
-      `SELECT oe.observation_id as observation_id, v.distance as distance
+      `SELECT oe.observation_id as observation_id, v.distance as distance, o.invalidated_at as invalidated_at
        FROM vec_observations v
        JOIN observation_embeddings oe ON oe.vec_rowid = v.rowid
+       JOIN observations o ON o.id = oe.observation_id
        WHERE v.embedding MATCH ? AND k = ?
        ORDER BY v.distance`,
     )
-    .all(buffer, limit) as ReadonlyArray<{ observation_id: string; distance: number }>;
-  return rows.map((row) => ({ observation_id: row.observation_id, distance: row.distance }));
+    .all(buffer, overfetchLimit) as ReadonlyArray<{
+    observation_id: string;
+    distance: number;
+    invalidated_at: string | null;
+  }>;
+  return rows
+    .filter((row) => row.invalidated_at === null)
+    .slice(0, limit)
+    .map((row) => ({ observation_id: row.observation_id, distance: row.distance }));
 }

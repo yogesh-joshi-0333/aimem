@@ -16,9 +16,11 @@ export interface HybridSearchResult {
 export const EMBEDDING_DIMENSIONS = 384;
 
 /**
- * How many candidates to pull from each of the vector and keyword searches
- * before fusing and truncating to the caller's requested limit — wider than
- * the final limit so a strong keyword-only or vector-only match isn't
- * dropped just because it fell outside a too-narrow initial candidate pool.
+ * Floor on how many candidates to pull from each of the vector and keyword
+ * searches before fusing and truncating to the caller's requested limit --
+ * the actual per-mode pool size is max(limit, this floor), so it's wider
+ * than the final limit for small requests (helping a strong keyword-only or
+ * vector-only match survive fusion) while never being smaller than what the
+ * caller asked for (see hybrid-search.ts's searchHybrid).
  */
-export const HYBRID_CANDIDATE_POOL_SIZE = 20;
+export const MIN_HYBRID_CANDIDATE_POOL_SIZE = 20;

@@ -21,12 +21,16 @@ export function searchKeyword(db: Database.Database, queryText: string, limit: n
 
   const ftsQuery = tokens.map((token) => `"${token.replace(/"/g, '""')}"`).join(" OR ");
 
+  // Excludes invalidated observations (Phase 9F) directly in SQL via the JOIN, not as a
+  // post-filter in JS -- unlike sqlite-vec's k-nearest-neighbor cutoff (see vector-index.ts),
+  // FTS5's plain ORDER BY + LIMIT composes safely with a WHERE filter applied first.
   const rows = db
     .prepare(
-      `SELECT rowid as observation_rowid, rank
-       FROM observations_fts
-       WHERE observations_fts MATCH ?
-       ORDER BY rank
+      `SELECT f.rowid as observation_rowid, f.rank as rank
+       FROM observations_fts f
+       JOIN observations o ON o.rowid = f.rowid
+       WHERE f.observations_fts MATCH ? AND o.invalidated_at IS NULL
+       ORDER BY f.rank
        LIMIT ?`,
     )
     .all(ftsQuery, limit) as ReadonlyArray<{ observation_rowid: number; rank: number }>;

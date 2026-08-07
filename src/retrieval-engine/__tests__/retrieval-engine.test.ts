@@ -111,14 +111,12 @@ describe("RetrievalEngine", () => {
         await embedAndStore(storage, embedder, obs.id, obs.observation);
       }
       const results = await retrieval.search({ query: "fact about the bulk entity", limit: 999 });
-      // Hybrid search (Phase 9E) draws its candidate pool from a fixed-size window
-      // per search mode (HYBRID_CANDIDATE_POOL_SIZE) before final truncation, so the
-      // actual result count can legitimately be smaller than MAX_SEARCH_LIMIT when
-      // fewer than that many distinct candidates surface from either search mode.
-      // The invariant that matters is the ceiling, not an exact count tied to
-      // candidate-pool internals.
-      expect(results.results.length).toBeLessThanOrEqual(50);
-      expect(results.results.length).toBeGreaterThan(0);
+      // Hybrid search's per-mode candidate pool scales to at least the requested/capped
+      // limit (see hybrid-search.ts's searchHybrid, fixed during the post-launch hardening
+      // pass — it used to be a fixed pool smaller than MAX_SEARCH_LIMIT, which could
+      // silently cap results below 50 even with enough distinct candidates available).
+      // With 60 distinct live observations, exactly 50 should come back.
+      expect(results.results.length).toBe(50);
     });
 
     it("excludes an invalidated observation from results (Phase 9F)", async () => {
@@ -134,6 +132,33 @@ describe("RetrievalEngine", () => {
 
       const results = await retrieval.search({ query: "staging database credentials", limit: 10 });
       expect(results.results).toHaveLength(0);
+    });
+
+    it("does not let invalidated observations starve the candidate pool for live results (post-launch hardening)", async () => {
+      // Regression test: invalidated rows used to be filtered out only after the vector/FTS5
+      // candidate pool was already truncated to a fixed size, so invalidating most candidates
+      // could zero out the final result even when enough live matches existed. Fixed by
+      // excluding invalidated rows directly in the SQL search paths (vector-index.ts,
+      // keyword-search.ts) instead of post-filtering after truncation.
+      const entity = storage.createEntity({ name: "bulk", entity_type: "decision" });
+      const obsIds: string[] = [];
+      for (let i = 0; i < 10; i += 1) {
+        const obs = storage.createObservation({
+          entity_id: entity.id,
+          observation: `fact number ${i} about testing`,
+          source_trigger: "event",
+        });
+        await embedAndStore(storage, embedder, obs.id, obs.observation);
+        obsIds.push(obs.id);
+      }
+
+      const conflicts = new ConflictVersioningEngine(storage);
+      for (const id of obsIds.slice(0, 8)) {
+        conflicts.invalidate(id);
+      }
+
+      const results = await retrieval.search({ query: "fact about testing", limit: 5 });
+      expect(results.results.length).toBe(2);
     });
   });
 

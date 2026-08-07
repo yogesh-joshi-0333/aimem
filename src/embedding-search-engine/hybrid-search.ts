@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { searchKeyword } from "./keyword-search.js";
 import { searchSimilar } from "./vector-index.js";
-import { HYBRID_CANDIDATE_POOL_SIZE } from "./types.js";
+import { MIN_HYBRID_CANDIDATE_POOL_SIZE } from "./types.js";
 import type { HybridSearchResult } from "./types.js";
 
 const RRF_K = 60; // standard Reciprocal Rank Fusion smoothing constant
@@ -25,8 +25,13 @@ export async function searchHybrid(
   queryText: string,
   limit: number,
 ): Promise<readonly HybridSearchResult[]> {
-  const vectorResults = searchSimilar(db, queryEmbedding, HYBRID_CANDIDATE_POOL_SIZE);
-  const keywordResults = searchKeyword(db, queryText, HYBRID_CANDIDATE_POOL_SIZE);
+  // Each mode's candidate pool must be at least `limit` -- a fixed pool size smaller than
+  // the caller's requested limit would structurally cap results below what was asked for
+  // even when enough distinct live candidates exist (found during the post-launch
+  // hardening pass: MAX_SEARCH_LIMIT allows up to 50, but the pool was a fixed 20).
+  const candidatePoolSize = Math.max(limit, MIN_HYBRID_CANDIDATE_POOL_SIZE);
+  const vectorResults = searchSimilar(db, queryEmbedding, candidatePoolSize);
+  const keywordResults = searchKeyword(db, queryText, candidatePoolSize);
 
   const scores = new Map<string, number>();
 
