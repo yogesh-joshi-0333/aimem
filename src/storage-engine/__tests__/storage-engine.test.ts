@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { StorageEngine } from "../storage-engine.js";
 import { StorageCorruptedError } from "../errors.js";
+import { hasBackup } from "../backup.js";
 
 describe("StorageEngine", () => {
   let dir: string;
@@ -170,6 +171,26 @@ describe("StorageEngine", () => {
       }).toThrow("simulated failure mid-transaction");
 
       expect(engine.getObservationsByEntity(entity.id)).toHaveLength(0);
+    });
+  });
+
+  describe("backups (Phase 9A)", () => {
+    it("does not back up on first creation of a fresh db (nothing to back up yet)", () => {
+      // `engine` from beforeEach is a first-open on a brand-new file.
+      expect(hasBackup(dbPath)).toBe(false);
+    });
+
+    it("backs up the existing file before running migrations on a second open", () => {
+      engine.close();
+      engine = new StorageEngine(dbPath);
+      expect(hasBackup(dbPath)).toBe(true);
+    });
+
+    it("backupNow() copies the current file to memory.db.bak", () => {
+      engine.createEntity({ name: "test", entity_type: "decision" });
+      expect(hasBackup(dbPath)).toBe(false);
+      engine.backupNow();
+      expect(hasBackup(dbPath)).toBe(true);
     });
   });
 });

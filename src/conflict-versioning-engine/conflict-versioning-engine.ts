@@ -43,6 +43,8 @@ export class ConflictVersioningEngine {
       return { updated: false };
     }
 
+    this.storage.backupNow();
+
     return this.storage.runInTransaction(() => {
       const observation = this.storage.getObservationById(conflict.observation_id);
       if (observation === undefined) {

@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, chmodSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { registerVecExtension } from "../embedding-search-engine/vector-index.js";
+import { backupBeforeRiskyWrite } from "./backup.js";
 import { StorageCorruptedError } from "./errors.js";
 import type {
   ConflictRecord,
@@ -60,6 +61,9 @@ export class StorageEngine {
       throw new StorageCorruptedError(dbPath);
     }
 
+    if (!isFreshFile) {
+      backupBeforeRiskyWrite(dbPath);
+    }
     this.runMigrations();
     registerVecExtension(this.db);
 
@@ -73,6 +77,16 @@ export class StorageEngine {
 
   getRawConnection(): Database.Database {
     return this.db;
+  }
+
+  /**
+   * Copies the current memory.db to a single rolling backup (memory.db.bak)
+   * before a risky write (e.g. a confirmed conflict update). See
+   * docs/implementation/phases.md Phase 9A. Cheap enough to call before any
+   * write that isn't on the memory_store/memory_scan hot path.
+   */
+  backupNow(): void {
+    backupBeforeRiskyWrite(this.dbPath);
   }
 
   private runMigrations(): void {

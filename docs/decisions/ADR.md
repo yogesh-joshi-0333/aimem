@@ -215,4 +215,30 @@ Append-only log. Never edit a past ADR's decision retroactively — if a decisio
 
 ---
 
+## ADR-017: Evaluated and Rejected `bge-small-en-v1.5` — Stayed on `all-MiniLM-L6-v2`
+
+**Date:** 2026-08-06
+**Status:** Accepted
+
+**Decision:** Ran the Phase 9B search-quality benchmark against `Xenova/bge-small-en-v1.5` (same 384 dimensions as the current model, ~34MB bundle vs. ~23MB) and did **not** adopt it. `EMBEDDING_MODEL_NAME` in `config.ts` remains `Xenova/all-MiniLM-L6-v2`.
+
+**Reason:** The 2026 research sweep (ADR-015) cited `bge-small-en-v1.5` as consistently better than MiniLM on public retrieval benchmarks (MTEB-style). On aimem's own benchmark, the result was the opposite: **80.6% top-1 (29/36) vs. MiniLM's 86.1% (31/36)** — both models reached 100% top-5. The gap likely comes from a mismatch between what MTEB measures (formal, often longer-form retrieval queries) and this benchmark's actual content: short, colloquial, project-memory-style phrasing ("what's the staging db password", "can I deploy today") closer to how a developer actually talks to an AI assistant mid-conversation than to a benchmark corpus. This is the exact scenario Phase 9B's benchmark was built to catch — a general claim that doesn't transfer to the real use case — and it did its job on the very first real evaluation run through it.
+
+**Consequences:** No code change shipped from this evaluation — `config.ts` and `scripts/bundle-embedding-model.mjs` were reverted to `all-MiniLM-L6-v2` after the comparison, and the bundled `models/` directory was rebuilt back to the original ~23MB MiniLM bundle. The 86.1%/100% baseline from ADR-016 stands as the current model's real, confirmed number, not a stale untested one. Revisiting this decision requires either a different candidate model or evidence the benchmark itself should change — not a re-run of `bge-small-en-v1.5` expecting a different result.
+
+---
+
+## ADR-018: Single Rolling Backup Before Risky Writes; No In-Place SQLite Repair
+
+**Date:** 2026-08-06
+**Status:** Accepted
+
+**Decision:** `StorageEngine` copies `.aimem/memory.db` to a single rolling `.aimem/memory.db.bak` (overwritten each time, not a versioned history) before two operations: opening an already-existing file (i.e., before migrations run — a fresh file has nothing to back up), and `ConflictVersioningEngine.confirmUpdate`'s confirmed-update write. Corruption recovery is restore-from-backup only, with no attempt at in-place SQLite repair.
+
+**Reason:** The original Phase 9A task wording called for attempting SQLite's own recovery tools (the `sqlite3` CLI's `.recover` dot-command) before falling back to backup-restore. Investigation found `better-sqlite3` (the Node driver aimem actually uses) has no equivalent API, and the only way to get `.recover`-style behavior would be shelling out to a system-installed `sqlite3` binary — an undocumented external dependency not guaranteed to exist on a user's machine, directly contradicting the project's zero-external-dependency identity (ADR-001 through ADR-006). Restore-from-backup is therefore the only recovery path, which is consistent with the project's existing conflict-handling principle (Rule 11: never silently overwrite or discard data) — recovery requires the user's explicit confirmation, deferred to the `aimem inspect repair` CLI command being built in Phase 9D rather than added as a 7th MCP tool (a judgment call made explicitly with the project owner: recovery is a rare, human-judgment operation better suited to a terminal confirmation prompt than an AI agent deciding to restore data on the user's behalf).
+
+**Consequences:** The backup is deliberately not on the `memory_store`/`memory_scan` hot path — it only fires before the two operations above, keeping normal capture/retrieval latency unaffected. Because it's a single rolling backup rather than versioned history, only the most recent pre-risky-write state is recoverable — an accepted trade-off for simplicity (Phase 9A's task wording explicitly said "not a versioned backup system"). A real bug was caught by the new tests during implementation: a test that manually closed and reopened `StorageEngine` without updating the outer `describe` block's `let engine` binding caused `afterEach` to double-close the connection (`TypeError: The database connection is not open`) — fixed by reassigning `engine` rather than using a separately-scoped local variable, a pattern worth watching for in any future test that closes/reopens the engine under test.
+
+---
+
 See also: [../RULES.md](../RULES.md), [../requirements/PRD.md](../requirements/PRD.md), [../architecture/system-overview.md](../architecture/system-overview.md), [implementation/phases.md](../implementation/phases.md) Phase 9.

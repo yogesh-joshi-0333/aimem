@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { StorageEngine } from "../../storage-engine/storage-engine.js";
+import { hasBackup } from "../../storage-engine/backup.js";
 import { ConflictVersioningEngine } from "../conflict-versioning-engine.js";
 import { ConflictNotFoundError } from "../errors.js";
 
@@ -118,6 +119,37 @@ describe("ConflictVersioningEngine", () => {
 
       const resolvedConflict = storage.getConflictById(conflict?.conflict_id ?? "");
       expect(resolvedConflict?.status).toBe("confirmed");
+    });
+
+    it("backs up memory.db before applying a confirmed update (Phase 9A)", () => {
+      const dbPath = join(dir, "memory.db");
+      const entity = storage.createEntity({ name: "primary-db", entity_type: "architecture_fact" });
+      storage.createObservation({
+        entity_id: entity.id,
+        attribute: "engine",
+        observation: "MySQL",
+        source_trigger: "event",
+      });
+      const conflict = engine.detectConflict(entity.id, "engine", "PostgreSQL");
+
+      expect(hasBackup(dbPath)).toBe(false);
+      engine.confirmUpdate(conflict?.conflict_id ?? "", "confirm");
+      expect(hasBackup(dbPath)).toBe(true);
+    });
+
+    it("does NOT back up on reject (no live-data write happens)", () => {
+      const dbPath = join(dir, "memory.db");
+      const entity = storage.createEntity({ name: "primary-db", entity_type: "architecture_fact" });
+      storage.createObservation({
+        entity_id: entity.id,
+        attribute: "engine",
+        observation: "MySQL",
+        source_trigger: "event",
+      });
+      const conflict = engine.detectConflict(entity.id, "engine", "PostgreSQL");
+
+      engine.confirmUpdate(conflict?.conflict_id ?? "", "reject");
+      expect(hasBackup(dbPath)).toBe(false);
     });
 
     it("throws ConflictNotFoundError when confirming an already-resolved conflict", () => {

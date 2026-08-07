@@ -21,12 +21,19 @@ The Storage Engine owns the single SQLite file (`.aimem/memory.db`) that holds a
 src/storage-engine/
 ├── storage-engine.ts           # StorageEngine class: connection, CRUD, migrations
 ├── types.ts                    # EntityRecord, RelationRecord, ObservationRecord, etc.
+├── errors.ts                   # StorageCorruptedError
+├── backup.ts                   # Phase 9A: rolling .bak copy before risky writes
+├── recovery.ts                 # Phase 9A: corruption diagnosis + restore-from-backup (no in-place repair, see ADR-018)
+├── ensure-gitignore.ts
 ├── migrations/
 │   ├── 001-init-schema.sql      # entities, relations, observations
-│   └── 002-conflict-versioning.sql  # observation_versions, conflicts
+│   ├── 002-conflict-versioning.sql  # observation_versions, conflicts
+│   └── 003-vector-index.sql     # observation_embeddings mapping table
 └── __tests__/
     ├── storage-engine.test.ts
-    └── concurrency.test.ts
+    ├── concurrency.test.ts
+    ├── backup.test.ts
+    └── recovery.test.ts
 ```
 
 ## Schema (Core Tables)
