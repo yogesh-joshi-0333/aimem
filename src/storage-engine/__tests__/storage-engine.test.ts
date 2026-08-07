@@ -1,4 +1,5 @@
-import { mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import Database from "better-sqlite3";
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -56,6 +57,12 @@ describe("StorageEngine", () => {
       const credentials = engine.listEntities({ entity_type: "credential" });
       expect(credentials).toHaveLength(1);
       expect(credentials[0]?.name).toBe("staging-db");
+    });
+
+    it("lists all entities when no filter is given", () => {
+      engine.createEntity({ name: "staging-db", entity_type: "credential" });
+      engine.createEntity({ name: "auth-service", entity_type: "decision" });
+      expect(engine.listEntities()).toHaveLength(2);
     });
 
     it("counts entities", () => {
@@ -236,6 +243,21 @@ describe("StorageEngine", () => {
     });
   });
 
+  describe("FTS5 backfill gating (Phase 9E)", () => {
+    it("does not re-run the FTS5 rebuild on a second open once the index is already populated", () => {
+      const entity = engine.createEntity({ name: "primary-db", entity_type: "architecture_fact" });
+      engine.createObservation({ entity_id: entity.id, observation: "PostgreSQL is the primary engine", source_trigger: "event" });
+
+      engine.close();
+      expect(() => {
+        engine = new StorageEngine(dbPath);
+      }).not.toThrow();
+
+      const stillThere = engine.getObservationsByEntity(entity.id);
+      expect(stillThere).toHaveLength(1);
+    });
+  });
+
   describe("invalidated_at column migration (Phase 9F)", () => {
     it("does not throw 'duplicate column name' when reopening a db that already has the column", () => {
       // `engine` from beforeEach already ran addInvalidatedAtColumnIfNeeded() once
@@ -255,6 +277,43 @@ describe("StorageEngine — corrupted file handling", () => {
     writeFileSync(dbPath, "this is not a valid sqlite database file, just plain garbage bytes");
 
     expect(() => new StorageEngine(dbPath)).toThrow(StorageCorruptedError);
+
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("throws StorageCorruptedError when the file opens successfully but fails PRAGMA integrity_check", () => {
+    // Unlike the garbage-bytes case above (which fails at the driver's new Database() call),
+    // this exercises the separate integrity_check branch: a file with a structurally valid
+    // SQLite header that still opens, but whose page data is corrupted deep inside.
+    const dir = mkdtempSync(join(tmpdir(), "aimem-test-corrupt-page-"));
+    const dbPath = join(dir, "memory.db");
+
+    const seed = new Database(dbPath);
+    seed.pragma("journal_mode = DELETE");
+    seed.exec("CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT)");
+    for (let i = 0; i < 200; i += 1) {
+      seed.exec(`INSERT INTO t (v) VALUES ('data${i}')`);
+    }
+    seed.close();
+
+    const buf = readFileSync(dbPath);
+    const offset = buf.length - 50;
+    buf[offset] = (buf[offset] ?? 0) ^ 0xff;
+    writeFileSync(dbPath, buf);
+
+    expect(() => new StorageEngine(dbPath)).toThrow(StorageCorruptedError);
+
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("creates the parent directory if it does not yet exist", () => {
+    const dir = mkdtempSync(join(tmpdir(), "aimem-test-mkdir-"));
+    const nestedDir = join(dir, "does-not-exist-yet");
+    const dbPath = join(nestedDir, "memory.db");
+
+    const engine = new StorageEngine(dbPath);
+    expect(statSync(nestedDir).isDirectory()).toBe(true);
+    engine.close();
 
     rmSync(dir, { recursive: true, force: true });
   });

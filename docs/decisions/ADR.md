@@ -275,4 +275,17 @@ A second empirical gotcha surfaced during implementation, the same class of prob
 
 ---
 
+## ADR-021: `@vitest/coverage-v8` for Coverage Measurement; Baseline Established, Not Chased to 100%
+
+**Date:** 2026-08-07
+**Status:** Accepted
+
+**Decision:** Added `@vitest/coverage-v8@2.1.9` as a devDependency (matching the already-installed `vitest@2.1.9`) and a `test:coverage` script. Used it to find and fix 8 real untested-edge-case gaps (see [implementation/phases.md](../implementation/phases.md) Phase 9C and [knowledge/testing-guide.md](../knowledge/testing-guide.md) for the full list), then recorded the resulting baseline (77.54% statements / 90.63% branches / 96.62% functions on the fast suite) as a floor, not a target to maximize further.
+
+**Reason:** MIT-licensed, ~24KB unpacked, devDependency-only (per RULES.md Rule 1's dependency-vetting requirement) — it never ships in the published npm package, so it carries none of the zero-external-dependency-at-runtime concerns that gate every *runtime* dependency decision in this project (ADR-001 through ADR-006). Version had to match the installed `vitest` major exactly (`2.x`, not the current `4.x` latest) since `@vitest/coverage-v8` is a peer-coupled plugin, not an independently-versioned tool. The task was explicitly scoped as "find real gaps, not padding" — the coverage number is a discovery tool for locating untested branches, not a score to inflate. Several remaining low-coverage lines were deliberately left uncovered after evaluation, not overlooked: a 48-bit rowid collision retry loop only reachable by mocking `randomInt` (not worth the brittleness for an astronomically rare path already documented as such at the call site), the embedding engine's missing-bundled-model-marker path (would require renaming the real `models/.bundled` file mid-test-run, a shared resource other concurrently-running test files in the same suite also depend on for their own real embedding calls), and a few `undefined`-guard branches with no reachable path through the current public API (no delete-entity method exists, so "observation's parent entity is missing" can't currently happen).
+
+**Consequences:** Adding `@vitest/coverage-v8` introduced exactly one new `npm audit` advisory (moderate, via its own `esbuild`/`vite` transitive chain) on top of the 10 that already existed from `@xenova/transformers`'s dependency tree before this change (verified by diffing `npm audit` before/after) — accepted since it is dev-tooling-only and does not affect the published package's runtime dependency graph. `coverage/` (the HTML/JSON report output directory) was added to `.gitignore` — it's a generated artifact, not source. Future phases that touch application logic should re-run `npm run test:coverage` and must not regress below the recorded baseline; pure documentation-only changes are exempt.
+
+---
+
 See also: [../RULES.md](../RULES.md), [../requirements/PRD.md](../requirements/PRD.md), [../architecture/system-overview.md](../architecture/system-overview.md), [implementation/phases.md](../implementation/phases.md) Phase 9.

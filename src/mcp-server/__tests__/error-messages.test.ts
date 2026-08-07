@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ToolRouter } from "../tool-router.js";
 import { StorageCorruptedError } from "../../storage-engine/errors.js";
 import { InvalidInputError } from "../../capture-engine/errors.js";
-import { ConflictNotFoundError } from "../../conflict-versioning-engine/errors.js";
+import { ConflictNotFoundError, ObservationNotFoundError } from "../../conflict-versioning-engine/errors.js";
 
 // These strings are copied verbatim from knowledge/error-handling.md's "Standard Error
 // Messages (Exact Text)" table. If this test fails, either the code drifted from the docs
@@ -14,6 +14,7 @@ const EXPECTED = {
   INVALID_INPUT:
     "The input provided to this tool is invalid or incomplete. Please check the required fields and try again.",
   CONFLICT_NOT_FOUND: "No pending memory conflict was found with the given conflict_id. It may have already been resolved.",
+  OBSERVATION_NOT_FOUND: "No observation was found with the given observation_id, or it has already been invalidated.",
   INTERNAL_ERROR: "An unexpected internal error occurred in aimem. Your existing memory data has not been modified.",
 };
 
@@ -78,6 +79,17 @@ describe("Exact error message strings (knowledge/error-handling.md)", () => {
     const result = await router.handleToolCall("t", {});
     if (!result.success) {
       expect(result.error.message).toBe(EXPECTED.CONFLICT_NOT_FOUND);
+    } else {
+      expect.fail("expected an error response");
+    }
+  });
+
+  it("OBSERVATION_NOT_FOUND matches the documented exact text", async () => {
+    const router = new ToolRouter();
+    registerThrowingTool(router, "t", new ObservationNotFoundError("unknown-id"));
+    const result = await router.handleToolCall("t", {});
+    if (!result.success) {
+      expect(result.error.message).toBe(EXPECTED.OBSERVATION_NOT_FOUND);
     } else {
       expect.fail("expected an error response");
     }

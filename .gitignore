@@ -4,3 +4,4 @@ models/
 *.log
 .DS_Store
 .aimem/
+coverage/

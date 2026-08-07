@@ -12,5 +12,16 @@ export default defineConfig({
     ],
     environment: "node",
     passWithNoTests: true,
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.ts"],
+      exclude: [
+        "src/**/*.test.ts",
+        "src/**/*.integration.test.ts",
+        "src/**/__tests__/**",
+        "src/**/types.ts",
+      ],
+      reporter: ["text", "html", "json"],
+    },
   },
 });

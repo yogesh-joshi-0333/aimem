@@ -28,6 +28,10 @@ describe("stringSimilarity", () => {
   it("returns a low score for unrelated strings", () => {
     expect(stringSimilarity("staging database password", "the team likes pizza")).toBeLessThan(0.5);
   });
+
+  it("returns 1 when both strings normalize to empty (whitespace-only input)", () => {
+    expect(stringSimilarity("   ", "")).toBe(1);
+  });
 });
 
 describe("isDuplicate", () => {

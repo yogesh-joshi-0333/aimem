@@ -189,10 +189,10 @@ Also found and fixed: `scripts/bundle-embedding-model.mjs` was missing from `pac
 
 ### 9C — Test Coverage Depth
 
-- [ ] Add a coverage tool (`vitest --coverage`, likely via `@vitest/coverage-v8` — check licensing/size before adding as a new dependency per RULES.md Rule 1) and establish a baseline coverage percentage across all modules.
-- [ ] Identify genuinely untested edge cases per module (not padding — real gaps): e.g. `memory_scan` with a mix of conflicts *and* duplicates *and* new candidates in one batch; concurrent conflict resolution from two sessions on the same conflict_id; embedding failure mid-`memory_scan` batch.
-- [ ] Add tests for each real gap found; re-measure coverage.
-- [ ] Record the achieved coverage percentage in [knowledge/testing-guide.md](../knowledge/testing-guide.md) as a maintained baseline, with a rule that coverage must not regress below it in future phases.
+- [x] Added `@vitest/coverage-v8@2.1.9` (MIT, devDependency only — verified license and confirmed it matches the already-installed `vitest@2.1.9`; adds one new moderate `npm audit` advisory via its own `esbuild`/`vite` transitive chain, accepted since it's dev-tooling-only and never ships in the published package) and established a baseline: 77.54% statements / 90.63% branches / 96.62% functions across the fast suite (113 tests). Full breakdown and reasoning in [knowledge/testing-guide.md](../knowledge/testing-guide.md).
+- [x] Identified genuinely untested edge cases per module by inspecting exact uncovered line ranges (not blanket padding): `logger.ts` had zero tests; `ToolRouter.listTools()` was never called; Phase 9F's `ObservationNotFoundError` mapping was missing from both error-classification test tables (a real doc/code drift risk); `StorageEngine`'s constructor had no test reaching its parent-directory-creation branch or its integrity-check-failure branch specifically (as opposed to the driver-level open failure already tested); `ensure-gitignore.ts`'s leading-newline branch was untested; `listEntities()` with no filter was never called; `searchKeyword` (Phase 9E) had no dedicated unit test; the embedding engine's concurrent-load-dedup path was untested.
+- [x] Added tests for every real gap found (16 new tests total); re-measured coverage — see the module-by-module before/after in testing-guide.md.
+- [x] Recorded the achieved baseline in [knowledge/testing-guide.md](../knowledge/testing-guide.md) with a regression rule (must not drop below baseline in future phases), and explicitly documented the handful of remaining gaps left uncovered on purpose (astronomically-rare retry path, a shared-resource test that would be unsafe to fake, a few defensive branches unreachable via the current public API) rather than silently leaving them unexplained.
 
 ### 9D — Local Inspection CLI (`aimem inspect`)
 

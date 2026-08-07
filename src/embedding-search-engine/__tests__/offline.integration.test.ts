@@ -20,4 +20,11 @@ describe("Embedding engine — fully offline (FR-EMBED-01, FR-EMBED-05)", () => 
     expect(vector.length).toBe(384);
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
+
+  it("reuses the same in-flight model load for concurrent embed() calls instead of loading twice", async () => {
+    const embedder = new EmbeddingEngine();
+    const [a, b] = await Promise.all([embedder.embed("first concurrent call"), embedder.embed("second concurrent call")]);
+    expect(a.length).toBe(384);
+    expect(b.length).toBe(384);
+  });
 });

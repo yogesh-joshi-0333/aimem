@@ -29,6 +29,13 @@ describe("ensureAimemGitignored", () => {
     expect(contents).toContain(".aimem/");
   });
 
+  it("inserts a leading newline when the existing .gitignore has no trailing newline", () => {
+    writeFileSync(join(dir, ".gitignore"), "node_modules/");
+    ensureAimemGitignored(dir);
+    const contents = readFileSync(join(dir, ".gitignore"), "utf-8");
+    expect(contents).toBe("node_modules/\n.aimem/\n");
+  });
+
   it("does not duplicate the entry if already present", () => {
     writeFileSync(join(dir, ".gitignore"), "node_modules/\n.aimem/\n");
     ensureAimemGitignored(dir);

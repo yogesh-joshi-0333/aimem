@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ToolRouter } from "../tool-router.js";
 import { StorageCorruptedError } from "../../storage-engine/errors.js";
 import { InvalidInputError } from "../../capture-engine/errors.js";
-import { ConflictNotFoundError } from "../../conflict-versioning-engine/errors.js";
+import { ConflictNotFoundError, ObservationNotFoundError } from "../../conflict-versioning-engine/errors.js";
 import { EmbeddingModelUnavailableError } from "../../embedding-search-engine/errors.js";
 
 const NOOP_SCHEMA = { type: "object", properties: {}, additionalProperties: false } as const;
@@ -52,6 +52,15 @@ describe("ToolRouter", () => {
         expect(result.data).toEqual({ value: 42 });
       }
     });
+
+    it("listTools returns the definition of every registered tool", () => {
+      const router = new ToolRouter();
+      router.registerTool({ name: "tool_a", description: "first", inputSchema: NOOP_SCHEMA }, async () => ({}));
+      router.registerTool({ name: "tool_b", description: "second", inputSchema: NOOP_SCHEMA }, async () => ({}));
+
+      const definitions = router.listTools();
+      expect(definitions.map((d) => d.name).sort()).toEqual(["tool_a", "tool_b"]);
+    });
   });
 
   describe("error classification and FR-ERR-04 (no leaked internals)", () => {
@@ -59,6 +68,7 @@ describe("ToolRouter", () => {
       { ErrorClass: StorageCorruptedError, ctorArg: "/home/someuser/secret-project/.aimem/memory.db", code: "STORAGE_CORRUPTED" },
       { ErrorClass: InvalidInputError, ctorArg: "some internal reason", code: "INVALID_INPUT" },
       { ErrorClass: ConflictNotFoundError, ctorArg: "conflict-abc-123", code: "CONFLICT_NOT_FOUND" },
+      { ErrorClass: ObservationNotFoundError, ctorArg: "observation-abc-123", code: "OBSERVATION_NOT_FOUND" },
       { ErrorClass: EmbeddingModelUnavailableError, ctorArg: "ENOENT: /home/someuser/secret-project/models/foo.onnx", code: "INTERNAL_ERROR" },
     ])("maps $ErrorClass.name to code $code without leaking the constructor argument", async ({ ErrorClass, ctorArg, code }) => {
       const router = new ToolRouter();
