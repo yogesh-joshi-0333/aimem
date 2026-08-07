@@ -172,10 +172,11 @@ Also found and fixed: `scripts/bundle-embedding-model.mjs` was missing from `pac
 
 ### 9E — Hybrid Search Re-Ranking (Keyword + Vector)
 
-- [ ] `memory_search` currently ranks purely by vector similarity (`sqlite-vec` distance). Add a keyword/full-text signal alongside it — SQLite's built-in FTS5 over `observations.observation` is sufficient; no new dependency needed.
-- [ ] Combine both signals into a single ranked result (e.g. a simple weighted blend of normalized FTS rank and vector distance) so an exact term match (a credential name, an env var, a literal identifier) surfaces reliably even when it wouldn't rank highly on embedding similarity alone.
-- [ ] Write tests proving the specific failure mode this fixes: a query containing an exact identifier that a pure-vector search would rank low, now ranking first.
-- [ ] Document the ranking formula in [modules/retrieval-engine.md](../modules/retrieval-engine.md) so it isn't a black box a future change silently breaks.
+- [x] Added FTS5 keyword search alongside `sqlite-vec` vector similarity — new migration `004-fts-search.sql` creates an external-content `observations_fts` table synced via triggers (no application-code sync needed for new writes); no new dependency, SQLite's built-in FTS5.
+- [x] Combined both signals via **Reciprocal Rank Fusion (RRF)**, not a weighted blend of raw scores — `sqlite-vec`'s distance and FTS5's bm25-based `rank` are not on comparable scales (verified empirically; `rank` is an unbounded small-negative number that varies with corpus statistics), so RRF combines by *rank position* in each list instead, which sidesteps that problem. Implemented in `src/embedding-search-engine/hybrid-search.ts`; wired as the real `memory_search` path via `RetrievalEngine.search()` → `searchHybridObservations`.
+- [x] Wrote tests proving the specific failure mode this fixes: `hybrid-search.integration.test.ts` proves an exact identifier (`STRIPE_WEBHOOK_SECRET`) now ranks first over a semantically-similar-but-different-identifier distractor that a pure-vector search alone would have confused it with.
+- [x] **Measured real impact against the Phase 9B benchmark's 5 known rank-2 misses**: re-ran all 5 through the hybrid path — **2 of 5 moved to rank 1** ("production payment gateway credentials", "what happens when I merge to main"); the other 3 stayed at rank 2 ("what database do we use", "session cache implementation", "pr approval policy"). A real, partial improvement, not a full fix — documented honestly in [decisions/ADR.md](../decisions/ADR.md) ADR-019 rather than claimed as solving all 5.
+- [x] Documented the ranking approach in [modules/retrieval-engine.md](../modules/retrieval-engine.md).
 
 ### 9F — Explicit Stale-Fact Invalidation
 

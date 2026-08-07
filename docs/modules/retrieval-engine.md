@@ -5,7 +5,7 @@
 
 ## Role
 
-The Retrieval Engine backs the new-session pickup experience and general in-conversation lookup: it implements `memory_get_project_context` (a lightweight summary used to announce that memory exists, without dumping full contents) and `memory_search` (a combined structured-filter + semantic-similarity query used to fetch only what's relevant to the user's stated interest), ensuring the AI never silently stays quiet about existing memory and never floods context with everything at once.
+The Retrieval Engine backs the new-session pickup experience and general in-conversation lookup: it implements `memory_get_project_context` (a lightweight summary used to announce that memory exists, without dumping full contents) and `memory_search` (a combined structured-filter + hybrid keyword/semantic query used to fetch only what's relevant to the user's stated interest), ensuring the AI never silently stays quiet about existing memory and never floods context with everything at once.
 
 ## Technology
 
@@ -13,18 +13,35 @@ The Retrieval Engine backs the new-session pickup experience and general in-conv
 |---|---|
 | Language | TypeScript |
 | Structured filtering | SQL queries via [storage-engine.md](storage-engine.md) |
-| Semantic ranking | via [embedding-search-engine.md](embedding-search-engine.md) |
+| Ranking | Hybrid vector + keyword search via [embedding-search-engine.md](embedding-search-engine.md) (Phase 9E, see below) |
+
+## Ranking: Hybrid Search (Phase 9E)
+
+`memory_search` ranks results using **Reciprocal Rank Fusion (RRF)** over two independent searches, not vector similarity alone:
+
+1. **Vector similarity** (`sqlite-vec` distance) — semantic closeness to the query, via the bundled local embedding model.
+2. **Keyword search** (SQLite FTS5 over `observations.observation`) — exact/near-exact term matches, catching identifiers (credential names, env vars, literal strings) that a pure embedding comparison sometimes ranks lower than a semantically-similar-but-different fact.
+
+Each search independently returns up to `HYBRID_CANDIDATE_POOL_SIZE` (20) candidates; RRF combines them by **rank position**, not raw score — `sqlite-vec`'s distance and FTS5's bm25-based `rank` are not on a comparable scale (verified empirically: FTS5's `rank` is an unbounded small-negative number whose magnitude depends on corpus statistics), so position-based fusion sidesteps that mismatch rather than trying to weight two incompatible units together. A result ranking well in *either* list scores highly; a result ranking well in *both* scores higher than either alone. See `src/embedding-search-engine/hybrid-search.ts`.
+
+Measured impact against the Phase 9B benchmark's known misses: 2 of 5 previously-rank-2 results moved to rank 1 under hybrid search; 3 stayed at rank 2 — a real, partial improvement, not a complete fix. See [decisions/ADR.md](../decisions/ADR.md) ADR-019 for the exact before/after per query.
 
 ## Planned File Structure
 
 ```
 src/retrieval-engine/
-├── retrieval-engine.ts        # getProjectContext(), search()
-├── summary-builder.ts         # builds the project-context summary payload
+├── retrieval-engine.ts        # getProjectContext(), search() -- search() calls
+│                               #   searchHybridObservations (embedding-search-engine)
 ├── types.ts                   # ProjectContextSummary, SearchResult
 └── __tests__/
-    ├── retrieval-engine.test.ts
-    └── summary-builder.test.ts
+    └── retrieval-engine.test.ts
+
+src/embedding-search-engine/
+├── vector-index.ts            # sqlite-vec similarity search
+├── keyword-search.ts          # FTS5 keyword search (Phase 9E)
+├── hybrid-search.ts           # Reciprocal Rank Fusion of the above (Phase 9E)
+└── __tests__/
+    └── hybrid-search.integration.test.ts
 ```
 
 ## Key Functions / Tools

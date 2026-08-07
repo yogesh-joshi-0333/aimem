@@ -19,7 +19,12 @@ import type {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = join(__dirname, "migrations");
-const MIGRATION_FILES = ["001-init-schema.sql", "002-conflict-versioning.sql", "003-vector-index.sql"];
+const MIGRATION_FILES = [
+  "001-init-schema.sql",
+  "002-conflict-versioning.sql",
+  "003-vector-index.sql",
+  "004-fts-search.sql",
+];
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -65,6 +70,7 @@ export class StorageEngine {
       backupBeforeRiskyWrite(dbPath);
     }
     this.runMigrations();
+    this.backfillFtsIndexIfNeeded();
     registerVecExtension(this.db);
 
     try {
@@ -94,6 +100,34 @@ export class StorageEngine {
       const sql = readFileSync(join(MIGRATIONS_DIR, fileName), "utf-8");
       this.db.exec(sql);
     }
+  }
+
+  /**
+   * Populates observations_fts for any observations rows that predate the
+   * FTS5 migration (004-fts-search.sql) being added to an existing memory.db.
+   * Only fires when the FTS index is empty but observations has rows — a
+   * fresh db has nothing to backfill, and an already-backfilled db must not
+   * re-run this (rebuilding a large FTS index on every single startup would
+   * be a real performance regression at the thousands-of-entries scale this
+   * project targets, see FR-STORE-07). Must use FTS5's special 'rebuild'
+   * command as a literal VALUES(...) — a conditional SELECT-based INSERT
+   * does not populate an external-content FTS5 index correctly (verified
+   * empirically; see 004-fts-search.sql's comment for detail).
+   */
+  private backfillFtsIndexIfNeeded(): void {
+    const ftsRow = this.db.prepare(`SELECT 1 as present FROM observations_fts LIMIT 1`).get() as
+      | { present: number }
+      | undefined;
+    if (ftsRow !== undefined) {
+      return;
+    }
+    const obsRow = this.db.prepare(`SELECT 1 as present FROM observations LIMIT 1`).get() as
+      | { present: number }
+      | undefined;
+    if (obsRow === undefined) {
+      return;
+    }
+    this.db.exec(`INSERT INTO observations_fts(observations_fts) VALUES ('rebuild')`);
   }
 
   createEntity(input: CreateEntityInput): EntityRecord {

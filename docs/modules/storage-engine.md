@@ -28,7 +28,8 @@ src/storage-engine/
 ├── migrations/
 │   ├── 001-init-schema.sql      # entities, relations, observations
 │   ├── 002-conflict-versioning.sql  # observation_versions, conflicts
-│   └── 003-vector-index.sql     # observation_embeddings mapping table
+│   ├── 003-vector-index.sql     # observation_embeddings mapping table
+│   └── 004-fts-search.sql       # observations_fts (Phase 9E, external-content FTS5 + sync triggers)
 └── __tests__/
     ├── storage-engine.test.ts
     ├── concurrency.test.ts

@@ -1,6 +1,6 @@
 import type { StorageEngine } from "../storage-engine/storage-engine.js";
 import type { EmbeddingEngine } from "../embedding-search-engine/embedding-engine.js";
-import { searchSimilarObservations } from "../embedding-search-engine/embedding-search-coordinator.js";
+import { searchHybridObservations } from "../embedding-search-engine/embedding-search-coordinator.js";
 import { DEFAULT_SEARCH_LIMIT, MAX_SEARCH_LIMIT } from "../config.js";
 import { TOP_ENTITIES_COUNT } from "./types.js";
 import type { ProjectContextSummary, SearchQueryInput, SearchResults } from "./types.js";
@@ -34,7 +34,7 @@ export class RetrievalEngine {
 
   async search(input: SearchQueryInput): Promise<SearchResults> {
     const limit = Math.min(input.limit ?? DEFAULT_SEARCH_LIMIT, MAX_SEARCH_LIMIT);
-    const similar = await searchSimilarObservations(this.storage, this.embedder, input.query, limit);
+    const similar = await searchHybridObservations(this.storage, this.embedder, input.query, limit);
 
     const results = similar
       .map((match) => {
