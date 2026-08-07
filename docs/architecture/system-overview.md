@@ -69,6 +69,7 @@
 | Conflict & Versioning Engine | Detects contradictions against existing values, manages `memory_confirm_update`, writes version history | [modules/conflict-versioning-engine.md](../modules/conflict-versioning-engine.md) |
 | Storage Engine | Owns the SQLite connection, schema migrations, WAL mode, CRUD for entities/relations/observations | [modules/storage-engine.md](../modules/storage-engine.md) |
 | Embedding/Search Engine | Loads the bundled ONNX model, generates embeddings, manages the `sqlite-vec` virtual table, runs similarity queries | [modules/embedding-search-engine.md](../modules/embedding-search-engine.md) |
+| Inspection CLI (`aimem-inspect`) | Human-facing local utility (Phase 9D): `list`/`search`/`export`/`repair` against `.aimem/memory.db`, independent of the MCP protocol | [modules/cli-inspect.md](../modules/cli-inspect.md) |
 
 ## Request/Response Flow Walkthrough — Storing a Memory During Conversation
 

@@ -288,4 +288,17 @@ A second empirical gotcha surfaced during implementation, the same class of prob
 
 ---
 
+## ADR-022: `aimem-inspect` as a Second `bin` Entry, Not a Subcommand Inside `aimem`; `repair` Lives Here, Not as an MCP Tool
+
+**Date:** 2026-08-07
+**Status:** Accepted
+
+**Decision:** Added a local inspection CLI (`src/cli/inspect.ts`, four subcommands: `list`, `search <query>`, `export`, `repair [--yes]`) as a second `package.json` `bin` entry (`aimem-inspect` → `dist/cli/inspect.js`), separate from the existing `aimem` binary (the MCP stdio server). `repair` implements the corruption-recovery confirmation flow that ADR-018 deferred from Phase 9A and ADR-020 deferred from Phase 9F, rather than adding a 7th (now 8th) MCP tool.
+
+**Reason:** `aimem` (`server.ts`) is a pure stdio JSON-RPC MCP server — it takes zero meaningful argv (only an optional explicit project-root path) and communicates exclusively over stdin/stdout per the MCP protocol; stdout is reserved entirely for protocol frames and must never carry human-readable CLI output (see `logger.ts`'s stderr-only design, [knowledge/error-handling.md](../knowledge/error-handling.md)). Bolting subcommand dispatch and human-readable JSON printing onto that same entry point would mean the one binary has two incompatible output contracts depending on how it's invoked — confusing and easy to get wrong. A second, independent binary keeps each entry point's contract simple: `aimem` is machine-to-machine (MCP client ↔ server), `aimem-inspect` is human-to-terminal. `repair` specifically was kept out of the MCP tool surface because restoring from backup is a destructive, human-judgment decision (discarding the current, corrupted file) — the same reasoning ADR-018 already established when this was first deferred; Phase 9D just supplies the confirmation UI that was missing.
+
+**Consequences:** `aimem-inspect` reuses `StorageEngine`/`RetrievalEngine`/`EmbeddingEngine`/`recovery.ts` directly with no MCP protocol involved, and faces the identical global-install/`npx` symlink-invocation risk `server.ts` already solved (ADR-010) — its `isMainModule()` reuses the same `realpathSync` pattern rather than risking the same silent-no-op bug a second time. `StorageEngine.getObservationsByEntity` was changed by Phase 9F to exclude invalidated observations (correct for normal retrieval), which would have silently dropped invalidated facts from `aimem-inspect export` — a backup/migration dump that quietly loses data is worse than one that's merely incomplete. Fixed by adding `getAllObservationsByEntity` (unfiltered) as a small additive method rather than changing `getObservationsByEntity`'s now-correct-for-its-callers behavior; `export` uses the new method, `list` intentionally still uses the filtered one (matching what an AI client would currently see via `memory_search`/`memory_get_project_context`). The CLI's core logic (`runList`/`runSearch`/`runExport`/`runRepair`) is factored out from its `main()`/`process.exit` wiring specifically so it's testable via direct function calls against a real temp `StorageEngine`, without needing to spawn a subprocess the way the MCP e2e suite does for `server.ts`.
+
+---
+
 See also: [../RULES.md](../RULES.md), [../requirements/PRD.md](../requirements/PRD.md), [../architecture/system-overview.md](../architecture/system-overview.md), [implementation/phases.md](../implementation/phases.md) Phase 9.

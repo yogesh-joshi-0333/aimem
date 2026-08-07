@@ -68,6 +68,24 @@ Each project folder gets its own independent `.aimem/memory.db`. Memory from one
 
 If you registered aimem with **user scope** (`claude mcp add aimem-mcp npx aimem-mcp -s user` — see [install-guide.md](install-guide.md)), this all works automatically in every project you open, with nothing further to configure. If you registered with local/project scope, you'll need to repeat the registration command in each new project directory.
 
+## Inspecting memory directly from the terminal (Phase 9D)
+
+Everything above happens automatically through your AI chat — there's nothing you *need* to run manually. But if you want to look at what's actually stored without going through an AI client (to debug, to verify what got captured, or to back it up), `aimem-inspect` is a small local CLI that ships alongside the MCP server and reads the same `.aimem/memory.db` in your current project directory.
+
+```bash
+cd your-project
+
+aimem-inspect list                      # every entity and its current (live) observations, as JSON
+aimem-inspect search "staging database" # the same hybrid keyword+semantic search memory_search uses
+aimem-inspect export                    # the full entity/observation graph as JSON, including invalidated facts — for backup or migration
+aimem-inspect repair                     # checks whether a usable backup exists (does not restore yet)
+aimem-inspect repair --yes               # actually restores memory.db from its rolling backup (see below)
+```
+
+If you installed aimem globally (`npm install -g aimem-mcp`) or run it via `npx`, `aimem-inspect` is available the same way `aimem` itself is — no separate install step.
+
+**On `repair`:** if `.aimem/memory.db` is reported as corrupted (the `STORAGE_CORRUPTED` error from any MCP tool call), `aimem-inspect repair` tells you whether a usable rolling backup exists at `.aimem/memory.db.bak` and whether it passes its own integrity check, without changing anything. Only `aimem-inspect repair --yes` actually overwrites the current file with that backup — a deliberate two-step, human-confirmed flow (this is not exposed as an MCP tool an AI agent could call on your behalf; deciding to discard the current file is your call to make, not the AI's).
+
 ## Things to keep in mind
 
 - **It relies on the AI's own judgment.** Automatic capture depends on the AI reliably deciding what's worth storing and reliably checking memory at the start of each session. This is generally good but not perfect — if it seems to have missed something, just tell it explicitly ("remember this").

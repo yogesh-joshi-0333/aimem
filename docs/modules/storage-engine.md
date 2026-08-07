@@ -64,6 +64,7 @@ Indexes: `entities.entity_type`, `observations.entity_id`, `observations.attribu
 | `findConflict(entityId, attribute, newValue)` | Compares new value against latest stored value |
 | `archiveVersion(observationId, oldValue)` | Writes to `observation_versions`, increments `version` |
 | `invalidateObservation(observationId)` | (Phase 9F) Sets `invalidated_at`; returns the timestamp written |
+| `getAllObservationsByEntity(entityId)` | (Phase 9D) Same as `getObservationsByEntity` but includes invalidated rows — used by `aimem-inspect export` |
 | `close()` | Clean WAL checkpoint + connection close |
 
 ## Lifecycle

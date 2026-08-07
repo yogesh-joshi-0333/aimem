@@ -154,6 +154,19 @@ describe("StorageEngine", () => {
       expect(engine.findLatestObservation(entity.id, "engine")).toBeUndefined();
       expect(engine.getObservationById(obs.id)).toBeDefined();
     });
+
+    it("getAllObservationsByEntity includes invalidated observations (Phase 9D)", () => {
+      const entity = engine.createEntity({ name: "primary-db", entity_type: "architecture_fact" });
+      const obs = engine.createObservation({
+        entity_id: entity.id,
+        attribute: "engine",
+        observation: "MySQL",
+        source_trigger: "event",
+      });
+      engine.invalidateObservation(obs.id);
+
+      expect(engine.getAllObservationsByEntity(entity.id)).toHaveLength(1);
+    });
   });
 
   describe("relations", () => {

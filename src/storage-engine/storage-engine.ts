@@ -289,6 +289,17 @@ export class StorageEngine {
       .all({ entity_id: entityId }) as ObservationRecord[];
   }
 
+  /**
+   * Same as getObservationsByEntity but includes invalidated observations.
+   * Used by aimem-inspect export (Phase 9D), where a backup/migration dump
+   * should preserve the full historical record, not just what's currently live.
+   */
+  getAllObservationsByEntity(entityId: string): readonly ObservationRecord[] {
+    return this.db
+      .prepare(`SELECT * FROM observations WHERE entity_id = @entity_id ORDER BY created_at DESC`)
+      .all({ entity_id: entityId }) as ObservationRecord[];
+  }
+
   findLatestObservation(entityId: string, attribute: string): ObservationRecord | undefined {
     return this.db
       .prepare(

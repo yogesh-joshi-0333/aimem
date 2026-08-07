@@ -40,7 +40,8 @@
     "node": ">=20.11.0 <21"
   },
   "bin": {
-    "aimem": "dist/server.js"
+    "aimem": "dist/server.js",
+    "aimem-inspect": "dist/cli/inspect.js"
   },
   "files": [
     "dist",
